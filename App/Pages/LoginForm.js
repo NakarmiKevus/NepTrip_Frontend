@@ -1,11 +1,12 @@
-// Components/LoginForm.js
 import React, { useState } from 'react';
 import { Text } from 'react-native';
-import FormContainer from './FormContainer';
-import FormInput from './FormInput';
-import FormSubmitButton from './FormSubmitButton';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import FormContainer from '../Components/FormContainer';
+import FormInput from '../Components/FormInput';
+import FormSubmitButton from '../Components/FormSubmitButton';
 import { isValidObjectField, updateError, isValidEmail } from '../Utils/Methods';
 import client from '../API/client';
+
 
 const LoginForm = ({ navigation }) => {
     const [userInfo, setUserInfo] = useState({
@@ -13,6 +14,7 @@ const LoginForm = ({ navigation }) => {
         password: ''
     });
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const { email, password } = userInfo;
 
     const handleOnChangeText = (value, fieldName) => {
@@ -32,15 +34,24 @@ const LoginForm = ({ navigation }) => {
     const submitForm = async () => {
         if (isValidForm()) {
             try {
+                setLoading(true);
                 const res = await client.post('/sign-in', userInfo);
                 if (res.data.success) {
-                    navigation.replace('UserProfile', {
+                    // Store token and user data in AsyncStorage
+                    await AsyncStorage.setItem('token', res.data.token);
+                    await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+                    
+                    // Navigate to Dashboard
+                    navigation.replace('Dashboard', {
                         token: res.data.token,
                         user: res.data.user
                     });
                 }
             } catch (error) {
+                console.error("Login error:", error.response?.data || error.message);
                 updateError(error.response?.data?.message || 'Error logging in', setError);
+            } finally {
+                setLoading(false);
             }
         }
     };
@@ -63,7 +74,11 @@ const LoginForm = ({ navigation }) => {
                 autoCapitalize="none"
                 secureTextEntry
             />
-            <FormSubmitButton onPress={submitForm} title="Login" />
+            <FormSubmitButton 
+                onPress={submitForm} 
+                title={loading ? "Logging in..." : "Login"} 
+                disabled={loading}
+            />
         </FormContainer>
     );
 };

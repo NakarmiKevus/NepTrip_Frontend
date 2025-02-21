@@ -2,8 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { ScrollView, StyleSheet, View, SafeAreaView, Animated, Dimensions } from 'react-native';
 import SelectorButton from './SelectorButton';
-import LoginForm from './LoginForm';
-import SignupForm from './SignupForm';
+import LoginForm from '../Pages/LoginForm';
+import SignupForm from '../Pages/SignupForm';
 import FormHeader from './FormHeader';
 
 const { width } = Dimensions.get('window');

@@ -1,5 +1,4 @@
-// loginform/App/Components/ImageUploader.js
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import client from '../API/client';
@@ -10,33 +9,26 @@ const ImageUploader = ({ route, navigation }) => {
   const [isUploading, setIsUploading] = useState(false);
   
   const token = route.params?.token;
-  
-  if (!token) {
-    console.error('No token provided');
-    Alert.alert(
-      'Authentication Error',
-      'Please login again.',
-      [{ 
-        text: 'OK', 
-        onPress: () => navigation.replace('AppForm')
-      }]
-    );
-    return null;
-  }
+
+  useEffect(() => {
+    requestPermission();
+  }, []);
+
+  const requestPermission = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Gallery access is needed to upload your profile picture.', [{ text: 'OK' }]);
+    }
+  };
 
   const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Sorry, we need camera roll permissions to make this work!',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      await requestPermission();
+      return;
+    }
 
+    try {
       const response = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -49,7 +41,6 @@ const ImageUploader = ({ route, navigation }) => {
         setProgress(0);
       }
     } catch (error) {
-      console.error('Image picker error:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -64,7 +55,7 @@ const ImageUploader = ({ route, navigation }) => {
     formData.append('profile', {
       name: `profile_${Date.now()}.jpg`,
       uri: image,
-      type: 'image/jpeg'
+      type: 'image/jpeg',
     });
 
     try {
@@ -72,56 +63,37 @@ const ImageUploader = ({ route, navigation }) => {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress(percentCompleted);
-        }
+        },
       });
 
       if (res.data.success) {
-        Alert.alert(
-          'Success', 
-          'Profile image uploaded successfully!',
-          [{ 
-            text: 'OK',
-            onPress: () => {
-              navigation.replace('UserProfile', { user: res.data.user });
-            }
-          }]
-        );
+        Alert.alert('Success', 'Profile image uploaded successfully!', [
+          { text: 'OK', onPress: () => navigation.replace('Dashboard', { user: res.data.user }) },
+        ]);
       } else {
         Alert.alert('Upload Failed', res.data.message || 'Failed to upload image');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to upload image. Please try again.';
-      Alert.alert('Upload Failed', errorMessage);
+      Alert.alert('Upload Failed', error.response?.data?.message || 'Failed to upload image. Please try again.');
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleSkip = () => {
-    navigation.replace('UserProfile');
+    navigation.replace('Dashboard');
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        onPress={pickImage} 
-        style={styles.uploadButtonContainer}
-        disabled={isUploading}
-      >
+      <TouchableOpacity onPress={pickImage} style={styles.uploadButtonContainer} disabled={isUploading}>
         {image ? (
-          <Image 
-            source={{ uri: image }} 
-            style={styles.profileImage} 
-            resizeMode="cover"
-          />
+          <Image source={{ uri: image }} style={styles.profileImage} resizeMode="cover" />
         ) : (
           <Text style={styles.uploadButtonText}>Upload your Profile Picture</Text>
         )}
@@ -138,29 +110,15 @@ const ImageUploader = ({ route, navigation }) => {
         {image && (
           <TouchableOpacity
             onPress={uploadProfileImage}
-            style={[
-              styles.uploadButton,
-              isUploading && styles.uploadButtonDisabled
-            ]}
+            style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
             disabled={isUploading}
           >
-            <Text style={styles.uploadButtonLabel}>
-              {isUploading ? 'Uploading...' : 'Upload'}
-            </Text>
+            <Text style={styles.uploadButtonLabel}>{isUploading ? 'Uploading...' : 'Upload'}</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity 
-          onPress={handleSkip} 
-          style={styles.skipButton}
-          disabled={isUploading}
-        >
-          <Text style={[
-            styles.skipButtonText,
-            isUploading && styles.skipButtonDisabled
-          ]}>
-            Skip
-          </Text>
+        <TouchableOpacity onPress={handleSkip} style={styles.skipButton} disabled={isUploading}>
+          <Text style={[styles.skipButtonText, isUploading && styles.skipButtonDisabled]}>Skip</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -247,7 +205,7 @@ const styles = StyleSheet.create({
   },
   skipButtonDisabled: {
     opacity: 0.5,
-  }
+  },
 });
 
 export default ImageUploader;

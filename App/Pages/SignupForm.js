@@ -1,9 +1,8 @@
-// Components/SignupForm.js
 import React from 'react';
 import { View, Alert } from 'react-native';
-import FormContainer from './FormContainer';
-import FormInput from './FormInput';
-import FormSubmitButton from './FormSubmitButton';
+import FormContainer from '../Components/FormContainer';
+import FormInput from '../Components/FormInput';
+import FormSubmitButton from '../Components/FormSubmitButton';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import client from '../API/client';
@@ -33,7 +32,8 @@ const SignupForm = ({ navigation }) => {
                 });
                 if (signInRes.data.success) {
                     navigation.replace('ImageUpload', {
-                        token: signInRes.data.token
+                        token: signInRes.data.token,
+                        onComplete: () => navigation.replace('Dashboard')
                     });
                 }
             }
