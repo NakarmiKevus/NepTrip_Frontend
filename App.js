@@ -13,9 +13,21 @@ import SignupForm from './App/Pages/SignupForm';
 import Dashboard from './App/Pages/Dashboard';
 import { GuideScreen } from './App/Pages/Guide';
 import { UserProfile } from './App/Pages/UserProfile';
+import EditProfile from './App/Pages/EditProfile'; 
+import Weather from './App/Pages/Weather';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+
+const ProfileStackNavigator = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={UserProfile} />
+      <Stack.Screen name="EditProfile" component={EditProfile} />
+    </Stack.Navigator>
+  );
+};
 
 const BottomTabNavigator = () => {
   return (
@@ -54,8 +66,8 @@ const BottomTabNavigator = () => {
       <Tab.Screen name="Explore" component={Dashboard} />
       <Tab.Screen name="Guide" component={GuideScreen} />
       <Tab.Screen name="Navigate" component={Dashboard} />
-      <Tab.Screen name="Weather" component={Dashboard} />
-      <Tab.Screen name="Profile" component={UserProfile} />
+      <Tab.Screen name="Weather" component={Weather} />
+      <Tab.Screen name="Profile" component={ProfileStackNavigator} />
     </Tab.Navigator>
   );
 };
@@ -92,3 +104,20 @@ const styles = StyleSheet.create({
     alignContent: 'center',
   },
 });
+
+// import React from 'react';
+// import { NavigationContainer } from '@react-navigation/native';
+// import { createStackNavigator } from '@react-navigation/stack';
+// import Weather from './App/Pages/Weather';
+
+// const Stack = createStackNavigator();
+
+// export default function App() {
+//   return (
+//     <NavigationContainer>
+//       <Stack.Navigator screenOptions={{ headerShown: false }}>
+//         <Stack.Screen name="Weather" component={Weather} />
+//       </Stack.Navigator>
+//     </NavigationContainer>
+//   );
+// }
