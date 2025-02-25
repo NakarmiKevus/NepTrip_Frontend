@@ -179,9 +179,9 @@ const EditProfile = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+        <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#000" />
-        <Text style={styles.loadingText}>Loading profile data...</Text>
+        <Text style={styles.loadingText}>Loading profile data...</Text> 
       </View>
     );
   }
@@ -277,6 +277,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    marginTop:50,
   },
   scrollContent: {
     paddingBottom: 30,
