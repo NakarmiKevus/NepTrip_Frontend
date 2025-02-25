@@ -10,7 +10,7 @@ import client from '../API/client';
 const validationSchema = Yup.object({
     fullname: Yup.string().trim().min(3, 'Invalid name').required('Name is required'),
     email: Yup.string().email('Invalid email').required('Email is required'),
-    password: Yup.string().trim().min(8, 'Password is too short').required('Password is required'),
+    password: Yup.string().trim().min(8, 'Password must be of eight character').required('Password is required'),
     confirmPassword: Yup.string().equals([Yup.ref('password')], 'Passwords do not match').required('Confirm password is required'),
 });
 

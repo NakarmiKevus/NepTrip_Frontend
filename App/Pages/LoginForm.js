@@ -27,7 +27,7 @@ const LoginForm = ({ navigation }) => {
         if (!isValidEmail(email)) 
             return updateError('Invalid email', setError);
         if (!password.trim() || password.length < 8) 
-            return updateError('Password must be at least 8 characters', setError);
+            return updateError('Invalid Password', setError);
         return true;
     };
 
