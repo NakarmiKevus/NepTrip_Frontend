@@ -24,7 +24,7 @@ export const SearchBar = ({ containerStyle, ...props }) => {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    padding: 15,
+    padding: 5,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -32,8 +32,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
-    borderRadius: 15,
-    padding: 5,
+    borderRadius: 30,
+    padding: 3,
+    marginHorizontal: 16,
+    
+
+
   },
   searchIcon: {
     marginRight: 8,
