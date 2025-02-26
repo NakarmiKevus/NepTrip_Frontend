@@ -9,28 +9,31 @@ import { debounce } from 'lodash';
 import { fetchLocations, fetchWeatherForecast } from '../API/weather';
 import { weatherImages } from '../..';
 import { Feather } from '@expo/vector-icons';
+import { getData, storeData } from '../Utils/asyncStorage';
+import * as Progress from 'react-native-progress';
 
 const Weather = () => {
   const [showSearch, toggleSearch] = useState(false);
   const [locations, setLocations] = useState([]);
   const [weather, setWeather] = useState({});
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
 
   const handleLocation = (loc) => {
     console.log('Selected location:', loc);
     toggleSearch(false);
     Keyboard.dismiss();
     setLocations([]);
-    setLoading(true);
-    
+    setLoading(true);    
     fetchWeatherForecast({
       cityName: loc.name,
-      days: '7'  // Changed from 'day' to 'days' to match API expectations
+      days: '7'  
     }).then(data => {
       setWeather(data);
       setLoading(false);
       console.log('got forecast:', data);
+      storeData('city', loc.name);
     }).catch(error => {
       console.error('Error fetching weather forecast:', error);
       setError('Failed to load weather data');
@@ -66,12 +69,13 @@ const Weather = () => {
   }, []);
 
   const fetchMyWeatherData = async () => {
-    setLoading(true);
-    setError(null);
+    let myCity = await getData('city');
+    let cityName = 'Kathmandu';
+    if(myCity) cityName = myCity;
     
     fetchWeatherForecast({
-      cityName: 'Kathmandu',
-      days: '7'  // Changed from 'day' to 'days' to match API expectations
+      cityName,
+      days: '7'
     }).then(data => {
       setWeather(data);
       setLoading(false);
@@ -86,7 +90,6 @@ const Weather = () => {
 
   const { current, location } = weather;
 
-  // Fallback image in case weatherImages mapping fails
   const getWeatherImage = (condition) => {
     if (!condition) return require('../../assets/images/partlycloudy.png'); // Fallback
     
@@ -106,164 +109,173 @@ const Weather = () => {
     }
   };
 
+  // Custom loading indicator that doesn't rely on react-native-progress
+  const CustomLoadingIndicator = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#0bb3b2" />
+      <Text style={styles.loadingText}>Loading weather data...</Text>
+    </View>
+  );
+
   return (
     <TouchableWithoutFeedback onPress={handleDismiss}>
       <View style={styles.container}>
         <StatusBar style="light" />
-
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.searchBox}>
-            <View style={styles.searchContainer}>
-            <Feather name="search" size={20} color="white" style={styles.button} />
-              <TextInput
-              
-                onChangeText={handleTextDebounce}
-                placeholder='Search city'
-                placeholderTextColor={'grey'}
-                style={styles.input}
-                onFocus={() => toggleSearch(true)}
-              />
-              <TouchableOpacity 
-                style={styles.button}
-                onPress={() => toggleSearch(!showSearch)}
-              >
-              </TouchableOpacity>
-            </View>
-
-            {locations.length > 0 && showSearch && (
-              <View style={styles.dropdown}>
-                {locations.map((loc, index) => {
-                  const showBorder = index + 1 !== locations.length;
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => handleLocation(loc)}
-                      style={[styles.locationItem, showBorder && styles.borderBottom]}
-                    >
-                      <MapPinIcon size={20} color="grey" />
-                      <Text style={styles.locationText}>
-                        {loc?.name}, {loc?.country}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+        {
+          loading ? (
+            // Use either Progress.CircleSnail if available, or default to custom loading indicator
+            Progress ? (
+              <View style={styles.loadingContainer}>
+                <Progress.CircleSnail thickness={10} size={140} color="#0bb3b2"/>
               </View>
-            )}
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="white" />
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={fetchMyWeatherData}>
-                <Text style={styles.retryText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <CustomLoadingIndicator />
+            )
           ) : (
-            <>
-              <View style={styles.weatherInfo}>
-                <Text style={styles.locationTextBig}>
-                  {location?.name},
-                  <Text style={styles.locationSubText}>
-                    {" " + location?.country}
-                  </Text>
-                </Text>
-                
-                {/* Centered weather display */}
-                <View style={styles.centeredWeatherContainer}>
-                  <Image 
-                    source={getWeatherImage(current?.condition)} 
-                    style={styles.weatherImage1} 
+            <SafeAreaView style={styles.safeArea}>
+              <View style={styles.searchBox}>
+                <View style={styles.searchContainer}>
+                  <Feather name="search" size={20} color="white" style={styles.button} />
+                  <TextInput
+                    onChangeText={handleTextDebounce}
+                    placeholder='Search city'
+                    placeholderTextColor={'grey'}
+                    style={styles.input}
+                    onFocus={() => toggleSearch(true)}
                   />
-                  
-                  <View style={styles.centeredWeatherDetails}>
-                    <Text style={styles.temperatureText}>
-                      {current?.temp_c ?? 23}&#176;
-                    </Text>
-                    <Text style={styles.weatherConditionText}>
-                      {current?.condition?.text ?? 'Partly Cloudy'}
+                </View>
+
+                {locations.length > 0 && showSearch && (
+                  <View style={styles.dropdown}>
+                    {locations.map((loc, index) => {
+                      const showBorder = index + 1 !== locations.length;
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => handleLocation(loc)}
+                          style={[styles.locationItem, showBorder && styles.borderBottom]}
+                        >
+                          <MapPinIcon size={20} color="grey" />
+                          <Text style={styles.locationText}>
+                            {loc?.name}, {loc?.country}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {error ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={fetchMyWeatherData}>
+                    <Text style={styles.retryText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.weatherInfo}>
+                    <Text style={styles.locationTextBig}>
+                      {location?.name},
+                      <Text style={styles.locationSubText}>
+                        {" " + location?.country}
+                      </Text>
                     </Text>
                     
-                    <View style={styles.weatherDetails}>
-                      <View style={styles.detailItem}>
-                        <Image 
-                          source={require('../../assets/images/wind.png')} 
-                          style={styles.iconSmall} 
-                        />
-                        <Text style={styles.detailText}>
-                          {current?.wind_kph ?? 9} km/h
+                    {/* Centered weather display */}
+                    <View style={styles.centeredWeatherContainer}>
+                      <Image 
+                        source={getWeatherImage(current?.condition)} 
+                        style={styles.weatherImage1} 
+                      />
+                      
+                      <View style={styles.centeredWeatherDetails}>
+                        <Text style={styles.temperatureText}>
+                          {current?.temp_c ?? 23}&#176;
                         </Text>
-                      </View>
-                      <View style={styles.detailItem}>
-                        <Image 
-                          source={require('../../assets/images/drop.png')} 
-                          style={styles.iconSmall} 
-                        />
-                        <Text style={styles.detailText}>
-                          {current?.humidity ?? 43}%
+                        <Text style={styles.weatherConditionText}>
+                          {current?.condition?.text ?? 'Partly Cloudy'}
                         </Text>
-                      </View>
-                      <View style={styles.detailItem}>
-                        <Image 
-                          source={require('../../assets/images/sun.png')} 
-                          style={styles.iconSmall} 
-                        />
-                        <Text style={styles.detailText}>
-                          {formatTime(weather?.forecast?.forecastday?.[0]?.astro?.sunrise) ?? '6:00 AM'}
-                        </Text>
+                        
+                        <View style={styles.weatherDetails}>
+                          <View style={styles.detailItem}>
+                            <Image 
+                              source={require('../../assets/images/wind.png')} 
+                              style={styles.iconSmall} 
+                            />
+                            <Text style={styles.detailText}>
+                              {current?.wind_kph ?? 9} km/h
+                            </Text>
+                          </View>
+                          <View style={styles.detailItem}>
+                            <Image 
+                              source={require('../../assets/images/drop.png')} 
+                              style={styles.iconSmall} 
+                            />
+                            <Text style={styles.detailText}>
+                              {current?.humidity ?? 43}%
+                            </Text>
+                          </View>
+                          <View style={styles.detailItem}>
+                            <Image 
+                              source={require('../../assets/images/sun.png')} 
+                              style={styles.iconSmall} 
+                            />
+                            <Text style={styles.detailText}>
+                              {weather?.forecast?.forecastday?.[0]?.astro?.sunrise}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              </View>
 
-              <View style={styles.forecastContainer}>
-                <View style={styles.forecastHeader}>
-                  <CalendarDaysIcon size={22} color="white" />
-                  <Text style={styles.forecastText}>Daily Forecast</Text>
-                </View>
-                
-                <ScrollView
-                    horizontal
-                    contentContainerStyle={{ paddingHorizontal: 10, flexDirection: 'row' }}
-                    showsHorizontalScrollIndicator={false}
-                  >
-                    {weather?.forecast?.forecastday?.length > 0 ? (
-                      weather.forecast.forecastday
-                        .slice(1, 8) // Skip today's data and limit to the next 7 days
-                        .map((item) => {
-                          const date = new Date(item.date);
-                          const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                  <View style={styles.forecastContainer}>
+                    <View style={styles.forecastHeader}>
+                      <CalendarDaysIcon size={22} color="white" />
+                      <Text style={styles.forecastText}>Daily Forecast</Text>
+                    </View>
+                    
+                    <ScrollView
+                      horizontal
+                      contentContainerStyle={{ paddingHorizontal: 10, flexDirection: 'row' }}
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      {weather?.forecast?.forecastday?.length > 0 ? (
+                        weather.forecast.forecastday
+                          .slice(1, 8) // Skip today's data and limit to the next 7 days
+                          .map((item) => {
+                            const date = new Date(item.date);
+                            const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
 
-                          return (
-                            <View key={item.date} style={styles.forecastItem}>
-                              <Image 
-                                source={getWeatherImage(item?.day?.condition)} 
-                                style={styles.weatherImage} 
-                              />
-                              <Text style={styles.forecastDay} numberOfLines={1} ellipsizeMode="tail">
-                                {dayName}
-                              </Text>
-                              <Text style={styles.forecastTemp}>
-                                {item?.day?.avgtemp_c?.toFixed(1) ?? '0'}&#176;
-                              </Text>
-                            </View>
-                          );
-                        })
-                    ) : (
-                      <View style={styles.forecastItem}>
-                        <Text style={styles.forecastDay}>No forecast data</Text>
-                      </View>
-                    )}
-                  </ScrollView>
-
-              </View>
-            </>
-          )}
-        </SafeAreaView>
+                            return (
+                              <View key={item.date} style={styles.forecastItem}>
+                                <Image 
+                                  source={getWeatherImage(item?.day?.condition)} 
+                                  style={styles.weatherImage} 
+                                />
+                                <Text style={styles.forecastDay} numberOfLines={1} ellipsizeMode="tail">
+                                  {dayName}
+                                </Text>
+                                <Text style={styles.forecastTemp}>
+                                  {item?.day?.avgtemp_c?.toFixed(1) ?? '0'}&#176;
+                                </Text>
+                              </View>
+                            );
+                          })
+                      ) : (
+                        <View style={styles.forecastItem}>
+                          <Text style={styles.forecastDay}>No forecast data</Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
+            </SafeAreaView>
+          )
+        }
       </View>
     </TouchableWithoutFeedback>
   );
@@ -352,6 +364,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    color: 'white',
+    fontSize: 18,
+    marginTop: 16,
   },
   errorContainer: {
     flex: 1,
@@ -451,8 +468,8 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     textAlign: 'center',
     width: 75, // Ensure a fixed width
-
   },
+
   forecastTemp: {
     color: 'white',
     fontSize: 22,
