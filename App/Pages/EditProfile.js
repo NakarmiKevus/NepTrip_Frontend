@@ -277,10 +277,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    marginTop: 50,
+    
   },
   scrollContent: {
     paddingBottom: 30,
+    marginTop: 40,
   },
   loadingContainer: {
     flex: 1,

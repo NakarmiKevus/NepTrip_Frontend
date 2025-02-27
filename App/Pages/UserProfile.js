@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../API/client';
 
-export const UserProfile = ({ navigation }) => {
+const UserProfile = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState({
     fullname: "",
@@ -326,3 +326,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+export default UserProfile;

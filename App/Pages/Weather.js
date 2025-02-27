@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, TouchableWithoutFeedback, Keyboard, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,7 +25,9 @@ const Weather = () => {
     toggleSearch(false);
     Keyboard.dismiss();
     setLocations([]);
-    setLoading(true);    
+    setLoading(true);
+    setError(null); // Clear any previous errors
+    
     fetchWeatherForecast({
       cityName: loc.name,
       days: '7'  
@@ -51,15 +53,18 @@ const Weather = () => {
   const handleSearch = value => {
     if (value.length > 2) {
       setLoading(true);
+      setError(null); // Clear any previous errors
+      
       fetchLocations({ cityName: value })
         .then(data => {
-          setLocations(data);
+          setLocations(data || []);
           setLoading(false);
         })
         .catch(error => {
           console.error('Error fetching locations:', error);
           setError('Failed to find locations');
           setLoading(false);
+          setLocations([]);
         });
     }
   };
@@ -69,70 +74,70 @@ const Weather = () => {
   }, []);
 
   const fetchMyWeatherData = async () => {
-    let myCity = await getData('city');
-    let cityName = 'Kathmandu';
-    if(myCity) cityName = myCity;
+    setLoading(true);
+    setError(null); // Clear any previous errors
     
-    fetchWeatherForecast({
-      cityName,
-      days: '7'
-    }).then(data => {
+    try {
+      let myCity = await getData('city');
+      let cityName = myCity || 'Kathmandu'; 
+      
+      const data = await fetchWeatherForecast({
+        cityName,
+        days: '7'
+      });
+      
       setWeather(data);
       setLoading(false);
-    }).catch(error => {
+    } catch (error) {
       console.error("Error fetching weather data:", error);
       setError('Failed to load weather data');
       setLoading(false);
-    });
+    }
   };
 
   const handleTextDebounce = useCallback(debounce(handleSearch, 1200), []);
 
-  const { current, location } = weather;
+  const { current, location, forecast } = weather || {};
 
   const getWeatherImage = (condition) => {
-    if (!condition) return require('../../assets/images/partlycloudy.png'); // Fallback
+    if (!condition) return require('../../assets/images/partlycloudy.png'); 
     
-    const image = weatherImages[condition.text];
-    return image ? image : require('../../assets/images/partlycloudy.png'); // Fallback if mapping fails
+    try {
+      const image = weatherImages[condition.text];
+      return image ? image : require('../../assets/images/partlycloudy.png'); 
+    } catch (e) {
+      console.error('Error getting weather image:', e);
+      return require('../../assets/images/partlycloudy.png'); 
+    }
   };
 
   // Format sunrise time (assuming it's in the format from API)
   const formatTime = (timeString) => {
-    if (!timeString) return '6:00 AM'; // Fallback
+    if (!timeString) return '6:00 AM'; 
     
     try {
       const date = new Date(timeString);
       return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
-      return '6:00 AM'; // Fallback
+      return '6:00 AM'; 
     }
   };
 
-  // Custom loading indicator that doesn't rely on react-native-progress
-  const CustomLoadingIndicator = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#0bb3b2" />
-      <Text style={styles.loadingText}>Loading weather data...</Text>
-    </View>
-  );
-
   return (
-    <TouchableWithoutFeedback onPress={handleDismiss}>
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        {
-          loading ? (
-            // Use either Progress.CircleSnail if available, or default to custom loading indicator
-            Progress ? (
-              <View style={styles.loadingContainer}>
-                <Progress.CircleSnail thickness={10} size={140} color="#0bb3b2"/>
-              </View>
-            ) : (
-              <CustomLoadingIndicator />
-            )
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "andriod" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <View style={styles.container}>
+          <StatusBar style="light" />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Progress.CircleSnail thickness={10} size={140} color="#0bb3b2"/>
+            </View>
           ) : (
             <SafeAreaView style={styles.safeArea}>
+              {/* Search Box */}
               <View style={styles.searchBox}>
                 <View style={styles.searchContainer}>
                   <Feather name="search" size={20} color="white" style={styles.button} />
@@ -174,16 +179,20 @@ const Weather = () => {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <>
+                <ScrollView 
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={showSearch ? styles.contentContainerSearch : styles.contentContainer}
+                >
+                  {/* Location */}
                   <View style={styles.weatherInfo}>
                     <Text style={styles.locationTextBig}>
-                      {location?.name},
+                      {location?.name || 'Loading...'},
                       <Text style={styles.locationSubText}>
-                        {" " + location?.country}
+                        {" " + (location?.country || '')}
                       </Text>
                     </Text>
                     
-                    {/* Centered weather display */}
+                    {/* Weather display */}
                     <View style={styles.centeredWeatherContainer}>
                       <Image 
                         source={getWeatherImage(current?.condition)} 
@@ -223,7 +232,7 @@ const Weather = () => {
                               style={styles.iconSmall} 
                             />
                             <Text style={styles.detailText}>
-                              {weather?.forecast?.forecastday?.[0]?.astro?.sunrise}
+                              {weather?.forecast?.forecastday?.[0]?.astro?.sunrise || '6:00 AM'}
                             </Text>
                           </View>
                         </View>
@@ -231,6 +240,7 @@ const Weather = () => {
                     </View>
                   </View>
 
+                  {/* Forecast */}
                   <View style={styles.forecastContainer}>
                     <View style={styles.forecastHeader}>
                       <CalendarDaysIcon size={22} color="white" />
@@ -245,12 +255,12 @@ const Weather = () => {
                       {weather?.forecast?.forecastday?.length > 0 ? (
                         weather.forecast.forecastday
                           .slice(1, 8) // Skip today's data and limit to the next 7 days
-                          .map((item) => {
+                          .map((item, index) => {
                             const date = new Date(item.date);
                             const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
 
                             return (
-                              <View key={item.date} style={styles.forecastItem}>
+                              <View key={item.date || index} style={styles.forecastItem}>
                                 <Image 
                                   source={getWeatherImage(item?.day?.condition)} 
                                   style={styles.weatherImage} 
@@ -259,7 +269,7 @@ const Weather = () => {
                                   {dayName}
                                 </Text>
                                 <Text style={styles.forecastTemp}>
-                                  {item?.day?.avgtemp_c?.toFixed(1) ?? '0'}&#176;
+                                  {item?.day?.avgtemp_c ? item.day.avgtemp_c.toFixed(1) : '0'}&#176;
                                 </Text>
                               </View>
                             );
@@ -271,13 +281,13 @@ const Weather = () => {
                       )}
                     </ScrollView>
                   </View>
-                </>
+                </ScrollView>
               )}
             </SafeAreaView>
-          )
-        }
-      </View>
-    </TouchableWithoutFeedback>
+          )}
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -290,12 +300,20 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+    marginTop:50,
+  },
+  contentContainerSearch: {
+    flexGrow: 1,
+    paddingBottom: 2,
+    paddingTop: 1, 
   },
   searchBox: {
-    position: 'relative',
+    position: 'absolute',
     zIndex: 50,
     marginHorizontal: 16,
     marginTop: 10,
+    width: '92%',
+    alignSelf: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -327,6 +345,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    maxHeight: 250, // Limit the height so it doesn't push all content down
   },
   locationItem: {
     flexDirection: 'row',
@@ -343,21 +362,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   weatherInfo: {
-    flex: 1,
-    marginTop: 5,
+    marginTop: 30, // Increased to make room for search box
     marginHorizontal: 16,
     justifyContent: 'flex-start',
     zIndex: 1,
   },
   locationTextBig: {
     color: 'white',
-    fontSize: 32,
+    fontSize: 28, // Slightly smaller to fit better
     textAlign: 'center',
-    marginBottom: 30,
-    
+    marginBottom: 20,
   },
   locationSubText: {
-    fontSize: 18,
+    fontSize: 16,
     color: 'gray',
   },
   loadingContainer: {
@@ -395,14 +412,15 @@ const styles = StyleSheet.create({
   centeredWeatherContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop:20,
   },
   centeredWeatherDetails: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
   },
   weatherImage1: {
-    width: 170,
-    height: 170,
+    width: 150, // Slightly smaller
+    height: 150, // Slightly smaller
   },
   weatherImage: {
     width: 30,
@@ -423,6 +441,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'white',
     textAlign: 'center',
+    marginTop: 20,
   },
   weatherDetails: {
     flexDirection: 'row',
@@ -439,8 +458,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   forecastContainer: {
+    marginTop: 50,
     marginBottom: 20,
-    marginHorizontal: 16,
   },
   forecastHeader: {
     flexDirection: 'row',
@@ -469,7 +488,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: 75, // Ensure a fixed width
   },
-
   forecastTemp: {
     color: 'white',
     fontSize: 22,

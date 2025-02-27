@@ -33,11 +33,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 30,
-    padding: 3,
-    marginHorizontal: 16,
-    
-
-
+    padding: 'absolute',
+    paddingHorizontal: 14,
+    width: '92%',
+    alignSelf: 'center',
   },
   searchIcon: {
     marginRight: 8,

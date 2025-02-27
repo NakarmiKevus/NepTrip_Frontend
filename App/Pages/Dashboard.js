@@ -55,18 +55,16 @@ const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }) => {
   );
 };
 
-export const DashboardScreen = () => {
-  const [selectedCategory, setSelectedCategory] = useState(categories[0].id);
+const Dashboard = () => { 
+  const [selectedCategory, setSelectedCategory] = useState(categories[0].id); // Add state for selectedCategory
 
   return (
-    
     <SafeAreaView style={styles.container}>
-
       <SearchBar />
       <CategoryFilter
         categories={categories}
         selectedCategory={selectedCategory}
-        onSelectCategory={(categoryId) => setSelectedCategory(categoryId)}
+        onSelectCategory={setSelectedCategory} // Pass function to update state
       />
       <ScrollView style={styles.cardsContainer}>
         {treks.map((trek) => (
@@ -81,11 +79,12 @@ export const DashboardScreen = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop:55,
+    paddingTop:54,
   },
   cardsContainer: {
     flex: 1,
@@ -117,4 +116,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DashboardScreen;
+export default Dashboard;
