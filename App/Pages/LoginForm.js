@@ -7,7 +7,6 @@ import FormSubmitButton from '../Components/FormSubmitButton';
 import { isValidObjectField, updateError, isValidEmail } from '../Utils/Methods';
 import client from '../API/client';
 
-
 const LoginForm = ({ navigation }) => {
     const [userInfo, setUserInfo] = useState({
         email: '',
@@ -23,11 +22,11 @@ const LoginForm = ({ navigation }) => {
 
     const isValidForm = () => {
         if (!isValidObjectField(userInfo)) 
-            return updateError('Required all fields', setError);
+            return updateError('All fields are required', setError);
         if (!isValidEmail(email)) 
-            return updateError('Invalid email', setError);
+            return updateError('Invalid email format', setError);
         if (!password.trim() || password.length < 8) 
-            return updateError('Invalid Password', setError);
+            return updateError('Password must be at least 8 characters', setError);
         return true;
     };
 
@@ -36,16 +35,28 @@ const LoginForm = ({ navigation }) => {
             try {
                 setLoading(true);
                 const res = await client.post('/sign-in', userInfo);
+
                 if (res.data.success) {
-                    // Store token and user data in AsyncStorage
-                    await AsyncStorage.setItem('token', res.data.token);
-                    await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
-                    
-                    // Navigate to Dashboard
-                    navigation.replace('Dashboard', {
-                        token: res.data.token,
-                        user: res.data.user
-                    });
+                    const { token, user } = res.data;
+
+                    // Store token & user details
+                    await AsyncStorage.setItem('token', token);
+                    await AsyncStorage.setItem('userRole', user.role);
+                    await AsyncStorage.setItem('user', JSON.stringify(user));
+
+                    // Redirect based on role
+                    switch (user.role) {
+                        case 'admin':
+                            navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
+                            break;
+                        case 'guide':
+                            navigation.reset({ index: 0, routes: [{ name: 'GuideDashboard' }] });
+                            break;
+                        default:
+                            navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] });
+                    }
+                } else {
+                    updateError('Invalid credentials', setError);
                 }
             } catch (error) {
                 console.error("Login error:", error.response?.data || error.message);
@@ -59,6 +70,7 @@ const LoginForm = ({ navigation }) => {
     return (
         <FormContainer>
             {error ? <Text style={{ color: 'red', fontSize: 18, textAlign: 'center' }}>{error}</Text> : null}
+            
             <FormInput
                 value={email}
                 onChangeText={(value) => handleOnChangeText(value, 'email')}
@@ -66,6 +78,7 @@ const LoginForm = ({ navigation }) => {
                 placeholder="example@email.com"
                 autoCapitalize="none"
             />
+            
             <FormInput
                 value={password}
                 onChangeText={(value) => handleOnChangeText(value, 'password')}
@@ -74,6 +87,7 @@ const LoginForm = ({ navigation }) => {
                 autoCapitalize="none"
                 secureTextEntry
             />
+            
             <FormSubmitButton 
                 onPress={submitForm} 
                 title={loading ? "Logging in..." : "Login"} 

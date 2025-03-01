@@ -1,6 +1,12 @@
-// Components/AppForm.js
 import React, { useState, useRef } from 'react';
-import { ScrollView, StyleSheet, View, SafeAreaView, Animated, Dimensions } from 'react-native';
+import { 
+    ScrollView, 
+    StyleSheet, 
+    View, 
+    SafeAreaView, 
+    Animated, 
+    Dimensions 
+} from 'react-native';
 import SelectorButton from './SelectorButton';
 import LoginForm from '../Pages/LoginForm';
 import SignupForm from '../Pages/SignupForm';
@@ -35,6 +41,8 @@ export default function AppForm({ navigation }) {
                     })}
                 />
             </View>
+
+            {/* Selector Buttons for Login & Signup */}
             <View style={styles.selectorContainer}>
                 <SelectorButton
                     style={styles.borderLeft}
@@ -49,6 +57,8 @@ export default function AppForm({ navigation }) {
                     onPress={() => scrollViewRef.current.scrollTo({ x: width })}
                 />
             </View>
+
+            {/* Scrollable Login & Signup Forms */}
             <ScrollView
                 ref={scrollViewRef}
                 horizontal
