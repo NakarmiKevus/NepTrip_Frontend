@@ -59,9 +59,7 @@ const UserProfile = ({ navigation }) => {
               ...user,
               fullname: response.data.user.fullname,
               email: response.data.user.email,
-              avatar: response.data.user.avatar && response.data.user.avatar !== '' 
-                ? response.data.user.avatar 
-                : 'https://via.placeholder.com/150',
+              avatar: userData.avatar && userData.avatar !== '' ? userData.avatar : require('../../assets/images/Profile.png'),
               phoneNumber: response.data.user.phoneNumber || '',
               address: response.data.user.address || '',
               treks: response.data.user.treks || 0,
@@ -148,10 +146,12 @@ const UserProfile = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Image 
-            source={user.avatar && user.avatar !== '' ? { uri: user.avatar } : { uri: 'https://via.placeholder.com/150' }} 
-            style={styles.avatar} 
-          />
+        <Image 
+  source={user.avatar && user.avatar !== '' && typeof user.avatar === 'string' 
+    ? { uri: user.avatar } 
+    : user.avatar || require('../../assets/images/Profile.png')} 
+  style={styles.avatar} 
+/>
           <Text style={styles.name}>{user.fullname}</Text>
           <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Text style={styles.editButtonText}>Edit Profile</Text>

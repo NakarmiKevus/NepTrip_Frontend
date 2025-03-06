@@ -18,7 +18,11 @@ import Weather from './App/Pages/Weather';
 import ConfirmBooking from './App/Pages/ConfirmBooking';
 import UserProfile from './App/Pages/UserProfile';
 import AdminDashboard from './App/Pages/AdminDashboard';
+import GuideDatabase from './App/Pages/GuideDatabase';
+import UserDetails from './App/Pages/UserDetails';
 import GuideDashboard from './App/Pages/GuideDashboard';
+
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -111,9 +115,8 @@ const AdminBottomTabNavigator = () => (
     })}
   >
     <Tab.Screen name="Dashboard" component={AdminDashboard} />
-    <Tab.Screen name="Users" component={AdminDashboard} />
-    <Tab.Screen name="Guides" component={AdminDashboard} />
-    <Tab.Screen name="Settings" component={AdminDashboard} />
+    <Tab.Screen name="Users" component={UserDetails} />
+    <Tab.Screen name="Guides" component={GuideDatabase} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );

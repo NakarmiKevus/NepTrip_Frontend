@@ -2,28 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  FlatList, 
   ActivityIndicator, 
   Alert, 
   StyleSheet, 
-  TouchableOpacity, 
-  RefreshControl,
+  TouchableOpacity,
   SafeAreaView,
-  StatusBar,
-  Modal,
-  ScrollView
+  StatusBar
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../API/client';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ navigation }) => {
   const [users, setUsers] = useState([]);
   const [guides, setGuides] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -60,134 +53,21 @@ const AdminDashboard = () => {
       Alert.alert('Error', err.message || 'Failed to fetch dashboard data');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchDashboardData();
+  const navigateToUsers = () => {
+    navigation.navigate('UsersDatabase', { users });
   };
 
-  const handleUserPress = (user) => {
-    setSelectedUser(user);
-    setModalVisible(true);
+  const navigateToGuides = () => {
+    navigation.navigate('GuideDatabase', { guides });
   };
 
-  const renderUserItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.userCard}
-      onPress={() => handleUserPress(item)}
-    >
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.fullname}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
-      </View>
-      <View style={styles.userRole}>
-        <Text style={[
-          styles.roleText, 
-          item.role === 'admin' ? styles.adminRole : styles.userRoleText
-        ]}>
-          {item.role}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderUserDetailsModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <ScrollView>
-            <Text style={styles.modalHeader}>User Details</Text>
-            
-            {selectedUser && (
-              <View style={styles.detailsContainer}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Name:</Text>
-                  <Text style={styles.detailValue}>{selectedUser.fullname}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Email:</Text>
-                  <Text style={styles.detailValue}>{selectedUser.email}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Role:</Text>
-                  <Text style={[
-                    styles.detailValue, 
-                    selectedUser.role === 'admin' ? styles.adminHighlight : null
-                  ]}>
-                    {selectedUser.role}
-                  </Text>
-                </View>
-                
-                {/* Display all other user details */}
-                {selectedUser && Object.entries(selectedUser).map(([key, value]) => {
-                  // Skip the already displayed fields and complex objects
-                  if (['fullname', 'email', 'role', '_id', '__v'].includes(key) || 
-                      typeof value === 'object') {
-                    return null;
-                  }
-                  
-                  return (
-                    <View style={styles.detailRow} key={key}>
-                      <Text style={styles.detailLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text>
-                      <Text style={styles.detailValue}>{String(value)}</Text>
-                    </View>
-                  );
-                })}
-                
-                {/* Handle any nested objects if needed */}
-                {selectedUser && Object.entries(selectedUser).map(([key, value]) => {
-                  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                    return (
-                      <View key={key} style={styles.nestedContainer}>
-                        <Text style={styles.nestedHeader}>
-                          {key.charAt(0).toUpperCase() + key.slice(1)}:
-                        </Text>
-                        
-                        {Object.entries(value).map(([nestedKey, nestedValue]) => {
-                          if (typeof nestedValue !== 'object') {
-                            return (
-                              <View style={styles.nestedDetailRow} key={nestedKey}>
-                                <Text style={styles.nestedLabel}>{nestedKey}:</Text>
-                                <Text style={styles.nestedValue}>{String(nestedValue)}</Text>
-                              </View>
-                            );
-                          }
-                          return null;
-                        })}
-                      </View>
-                    );
-                  }
-                  return null;
-                })}
-              </View>
-            )}
-            
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4a6da7" />
+        <ActivityIndicator size="large" color="black" />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
@@ -210,36 +90,24 @@ const AdminDashboard = () => {
         <>
           {/* Summary Boxes */}
           <View style={styles.summaryContainer}>
-            <View style={styles.summaryBox}>
+            <TouchableOpacity 
+              style={styles.summaryBox}
+              onPress={navigateToUsers}
+            >
               <Text style={styles.summaryNumber}>{users.length}</Text>
               <Text style={styles.summaryLabel}>Total Users</Text>
-            </View>
-            <View style={styles.summaryBox}>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.summaryBox}
+              onPress={navigateToGuides}
+            >
               <Text style={styles.summaryNumber}>{guides.length}</Text>
               <Text style={styles.summaryLabel}>Total Guides</Text>
-            </View>
-          </View>
-
-          {/* Users List */}
-          <View style={styles.listContainer}>
-            <Text style={styles.sectionTitle}>Registered Users</Text>
-            <FlatList
-              data={users}
-              keyExtractor={item => item._id}
-              renderItem={renderUserItem}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No users found</Text>
-              }
-            />
-          </View>
+            </TouchableOpacity>
+          </View>          
         </>
       )}
-      
-      {renderUserDetailsModal()}
     </SafeAreaView>
   );
 };
@@ -259,7 +127,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#4a6da7',
+    color: 'black',
   },
   header: {
     fontSize: 24,
@@ -297,7 +165,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 8,
-    padding: 16,
+    padding: 20,
     marginHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -313,171 +181,30 @@ const styles = StyleSheet.create({
     color: 'black',
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
-    marginTop: 4,
+    marginTop: 8,
   },
-  listContainer: {
-    flex: 1,
-    backgroundColor: 'white',
+  navigationContainer: {
+    marginTop: 20,
+  },
+  navButton: {
+    backgroundColor: '#4a6da7',
     borderRadius: 8,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    alignItems: 'center',
     marginBottom: 12,
-    color: '#333',
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  userCard: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  userRole: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  adminRole: {
-    color: 'white',
-    backgroundColor: '#4a6da7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  userRoleText: {
-    color: '#636e72',
-    backgroundColor: '#ebf3ff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  modalHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-    color: '#4a6da7',
-  },
-  detailsContainer: {
-    marginBottom: 20,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingVertical: 12,
-  },
-  detailLabel: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#555',
-  },
-  detailValue: {
-    flex: 2,
-    fontSize: 16,
-    color: '#333',
-  },
-  adminHighlight: {
-    color: '#4a6da7',
-    fontWeight: 'bold',
-  },
-  nestedContainer: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  nestedHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#4a6da7',
-  },
-  nestedDetailRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingLeft: 20,
-  },
-  nestedLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666',
-  },
-  nestedValue: {
-    flex: 2,
-    fontSize: 14,
-    color: '#333',
-  },
-  closeButton: {
-    backgroundColor: 'black',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  closeButtonText: {
+  navButtonText: {
     color: 'white',
-    fontWeight: 'bold',
     fontSize: 16,
-  },
+    fontWeight: 'bold',
+  }
 });
 
 export default AdminDashboard;

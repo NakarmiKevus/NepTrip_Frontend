@@ -20,9 +20,20 @@ const getUserProfile = async () => {
   }
 };
 
+// Add delete user method
+const deleteUser = async (userId) => {
+  try {
+    const response = await client.delete(`/delete-user/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 // Add other user-related API methods here
 
 export default {
   getAllUsers,
-  getUserProfile
+  getUserProfile,
+  deleteUser
 };
