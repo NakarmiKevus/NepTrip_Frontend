@@ -30,10 +30,19 @@ const deleteUser = async (userId) => {
   }
 };
 
+const getGuides = async () => {
+  try {
+    const response = await client.get('/guides'); // Adjust the URL if needed
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
 // Add other user-related API methods here
 
 export default {
   getAllUsers,
   getUserProfile,
-  deleteUser
+  deleteUser,
+  getGuides
 };

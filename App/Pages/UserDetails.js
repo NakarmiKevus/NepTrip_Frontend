@@ -10,7 +10,8 @@ import {
   ScrollView, 
   ActivityIndicator, 
   StyleSheet,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../API/client';
@@ -141,6 +142,37 @@ const UserDetails = () => {
     );
   };
 
+  const renderUserAvatar = () => {
+    if (!selectedUser) return null;
+    
+    if (selectedUser.avatar && selectedUser.avatar !== '') {
+      return (
+        <Image 
+          source={{ uri: selectedUser.avatar }} 
+          style={styles.modalAvatar} 
+        />
+      );
+    } else {
+      const initials = getInitials(selectedUser.fullname);
+      const backgroundColor = getRandomColor(selectedUser.fullname);
+      
+      return (
+        <View style={[styles.modalAvatarPlaceholder, { backgroundColor }]}>
+          <Text style={styles.modalAvatarText}>{initials}</Text>
+        </View>
+      );
+    }
+  };
+
+  const renderUserDetail = (label, value) => {
+    return (
+      <View style={styles.detailRow}>
+        <Text style={styles.detailLabel}>{label}:</Text>
+        <Text style={styles.detailValue}>{value || ''}</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -171,18 +203,26 @@ const UserDetails = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalHeader}>User Details</Text>
+            <Text style={styles.modalHeader}>User Details</Text>
+            
+            <View style={styles.avatarContainer}>
+              {renderUserAvatar()}
+            </View>
+            
+            <ScrollView contentContainerStyle={styles.detailsContainer}>
               {selectedUser && (
-                <View>
-                  {Object.entries(selectedUser).map(([key, value]) => (
-                    <View style={styles.detailRow} key={key}>
-                      <Text style={styles.detailLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text>
-                      <Text style={styles.detailValue}>{String(value)}</Text>
-                    </View>
-                  ))}
-                </View>
+                <>
+                  {renderUserDetail('Role', selectedUser.role)}
+                  {renderUserDetail('Id', selectedUser._id)}
+                  {renderUserDetail('Full Name', selectedUser.fullname)}
+                  {renderUserDetail('Email', selectedUser.email)}
+                  {renderUserDetail('Created At', selectedUser.createdAt)}
+                  {renderUserDetail('Updated At', selectedUser.updatedAt)}
+                  {selectedUser.phoneNumber && renderUserDetail('Phone Number', selectedUser.phoneNumber)}
+                  {selectedUser.address && renderUserDetail('Address', selectedUser.address)}
+                </>
               )}
+              
               <View style={styles.buttonContainer}>
                 <TouchableOpacity 
                   style={styles.closeButton} 
@@ -232,23 +272,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 20,
   },
   avatarText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 20,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '500',
     color: '#333',
     marginBottom: 2,
@@ -291,41 +331,71 @@ const styles = StyleSheet.create({
     width: '90%',
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 20,
+    maxHeight: '80%',
   },
   modalHeader: {
-    fontSize: 20,
+    fontSize: 25,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#333',
-    marginBottom: 16,
+    marginVertical: 16,
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 80,
+    marginVertical:20
+  },
+  modalAvatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 80,
+    backgroundColor: '#cccccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical:20
+  },
+  modalAvatarText: {
+    color: 'white',
+    fontSize: 35,
+    fontWeight: 'bold',
+    letterSpacing:4
+  },
+  detailsContainer: {
+    paddingHorizontal: 25,
   },
   detailRow: {
     flexDirection: 'row',
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    paddingVertical: 12,
   },
   detailLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500',
     color: '#555',
+    marginRight:10
   },
   detailValue: {
     flex: 2,
-    fontSize: 16,
+    fontSize: 18,
     color: '#333',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
+    marginBottom: 20,
   },
   closeButton: {
-    backgroundColor: '#4a6da7',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: 'black',
+    paddingVertical: 15,
+    borderRadius: 15,
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
@@ -336,9 +406,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   deleteButton: {
-    backgroundColor: '#d9534f',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#444444',
+    paddingVertical: 15,
+    borderRadius: 15,
     alignItems: 'center',
     flex: 1,
     marginLeft: 8,
