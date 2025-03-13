@@ -6,11 +6,12 @@ import FormSubmitButton from '../Components/FormSubmitButton';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import client from '../API/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const validationSchema = Yup.object({
     fullname: Yup.string().trim().min(3, 'Invalid name').required('Name is required'),
     email: Yup.string().email('Invalid email').required('Email is required'),
-    password: Yup.string().trim().min(8, 'Password must be of eight character').required('Password is required'),
+    password: Yup.string().trim().min(8, 'Password must be at least 8 characters').required('Password is required'),
     confirmPassword: Yup.string().equals([Yup.ref('password')], 'Passwords do not match').required('Confirm password is required'),
 });
 
@@ -31,9 +32,14 @@ const SignupForm = ({ navigation }) => {
                     password: values.password,
                 });
                 if (signInRes.data.success) {
+                    // ✅ Store token and user in AsyncStorage
+                    await AsyncStorage.setItem('token', signInRes.data.token);
+                    await AsyncStorage.setItem('user', JSON.stringify(signInRes.data.user));
+
+                    // ✅ Navigate to Image Upload
                     navigation.replace('ImageUpload', {
                         token: signInRes.data.token,
-                        onComplete: () => navigation.replace('Dashboard')
+                        onComplete: () => navigation.replace('Dashboard'),
                     });
                 }
             }
@@ -45,20 +51,8 @@ const SignupForm = ({ navigation }) => {
 
     return (
         <FormContainer>
-            <Formik
-                initialValues={userInfo}
-                validationSchema={validationSchema}
-                onSubmit={signUp}
-            >
-                {({
-                    values,
-                    errors,
-                    touched,
-                    isSubmitting,
-                    handleChange,
-                    handleBlur,
-                    handleSubmit,
-                }) => (
+            <Formik initialValues={userInfo} validationSchema={validationSchema} onSubmit={signUp}>
+                {({ values, errors, touched, isSubmitting, handleChange, handleBlur, handleSubmit }) => (
                     <View>
                         <FormInput
                             value={values.fullname}
@@ -97,11 +91,7 @@ const SignupForm = ({ navigation }) => {
                             label="Confirm Password"
                             placeholder="********"
                         />
-                        <FormSubmitButton
-                            submitting={isSubmitting}
-                            onPress={handleSubmit}
-                            title="Sign up"
-                        />
+                        <FormSubmitButton submitting={isSubmitting} onPress={handleSubmit} title="Sign up" />
                     </View>
                 )}
             </Formik>

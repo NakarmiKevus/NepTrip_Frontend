@@ -1,210 +1,142 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
-  ActivityIndicator, 
+  TextInput, 
+  TouchableOpacity, 
   Alert, 
-  StyleSheet, 
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar
+  ScrollView, 
+  StyleSheet 
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import client from '../API/client';
+import TrekkingApi from '../API/trekkingApi'; // ✅ Ensure correct API import
 
-const AdminDashboard = ({ navigation }) => {
-  const [users, setUsers] = useState([]);
-  const [guides, setGuides] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const AdminDashboard = () => {
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
+  const [altitude, setAltitude] = useState('');
+  const [review, setReview] = useState('');
+  const [distance, setDistance] = useState('');
+  const [timeToComplete, setTimeToComplete] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  const [ecoCulturalInfo, setEcoCulturalInfo] = useState('');
+  const [gearChecklist, setGearChecklist] = useState([]);
+  const [newGearItem, setNewGearItem] = useState('');
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      // Fetch all users
-      const response = await client.get('/all-users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        setUsers(response.data.users);
-
-        // Extract guides from users list
-        const guideList = response.data.users.filter(user => user.role === 'guide');
-        setGuides(guideList);
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch users');
-      }
-
-      setError(null);
-    } catch (err) {
-      console.error('❌ Fetch Error:', err);
-      setError(err.message || 'Failed to fetch dashboard data');
-      Alert.alert('Error', err.message || 'Failed to fetch dashboard data');
-    } finally {
-      setLoading(false);
+  const handleAddGearItem = () => {
+    if (newGearItem.trim() !== '') {
+      setGearChecklist([...gearChecklist, newGearItem.trim()]);
+      setNewGearItem('');
     }
   };
 
-  const navigateToUsers = () => {
-    navigation.navigate('UsersDatabase', { users });
-  };
+  const handleAddTrekking = async () => {
+    if (!name || !location || !altitude || !review || !distance || !timeToComplete || !difficulty || !ecoCulturalInfo || gearChecklist.length === 0) {
+      Alert.alert('Error', 'Please fill all fields and add at least one gear item.');
+      return;
+    }
 
-  const navigateToGuides = () => {
-    navigation.navigate('GuideDatabase', { guides });
-  };
+    try {
+      const trekkingData = {
+        name,
+        location,
+        altitude: parseFloat(altitude),
+        review,
+        distance_from_user: parseFloat(distance),
+        time_to_complete: timeToComplete,
+        difficulty_level: difficulty,
+        eco_cultural_info: ecoCulturalInfo,
+        gear_checklist: gearChecklist,
+      };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="black" />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
-      </View>
-    );
-  }
+      const response = await TrekkingApi.addTrekking(trekkingData);
+      if (response.success) {
+        Alert.alert('Success', 'Trekking place added successfully');
+        setName('');
+        setLocation('');
+        setAltitude('');
+        setReview('');
+        setDistance('');
+        setTimeToComplete('');
+        setDifficulty('');
+        setEcoCulturalInfo('');
+        setGearChecklist([]);
+      } else {
+        Alert.alert('Error', response.message || 'Failed to add trekking place');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Something went wrong');
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.header}>Admin - Add Trekking Place</Text>
+
+      <TextInput style={styles.input} placeholder="Trekking Name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="Location" value={location} onChangeText={setLocation} />
+      <TextInput style={styles.input} placeholder="Altitude (meters)" keyboardType="numeric" value={altitude} onChangeText={setAltitude} />
+      <TextInput style={styles.input} placeholder="Review" value={review} onChangeText={setReview} />
+      <TextInput style={styles.input} placeholder="Distance from User (km)" keyboardType="numeric" value={distance} onChangeText={setDistance} />
+      <TextInput style={styles.input} placeholder="Time to Complete (e.g. '3 days')" value={timeToComplete} onChangeText={setTimeToComplete} />
       
-      <Text style={styles.header}>Admin Dashboard</Text>
-      
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchDashboardData}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+      <Text style={styles.label}>Difficulty Level:</Text>
+      <View style={styles.difficultyContainer}>
+        {['Easy', 'Moderate', 'Hard'].map((level) => (
+          <TouchableOpacity 
+            key={level} 
+            style={[styles.difficultyOption, difficulty === level && styles.selectedDifficulty]}
+            onPress={() => setDifficulty(level)}
+          >
+            <Text style={[styles.difficultyText, difficulty === level && styles.selectedDifficultyText]}>
+              {level}
+            </Text>
           </TouchableOpacity>
+        ))}
+      </View>
+
+      <TextInput style={styles.input} placeholder="Eco-Cultural Info" value={ecoCulturalInfo} onChangeText={setEcoCulturalInfo} />
+
+      <Text style={styles.label}>Gear Checklist:</Text>
+      <View style={styles.gearInputContainer}>
+        <TextInput style={styles.gearInput} placeholder="Add gear item" value={newGearItem} onChangeText={setNewGearItem} />
+        <TouchableOpacity style={styles.addGearButton} onPress={handleAddGearItem}>
+          <Text style={styles.addGearText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      {gearChecklist.length > 0 && (
+        <View style={styles.gearListContainer}>
+          {gearChecklist.map((item, index) => (
+            <Text key={index} style={styles.gearItem}>• {item}</Text>
+          ))}
         </View>
-      ) : (
-        <>
-          {/* Summary Boxes */}
-          <View style={styles.summaryContainer}>
-            <TouchableOpacity 
-              style={styles.summaryBox}
-              onPress={navigateToUsers}
-            >
-              <Text style={styles.summaryNumber}>{users.length}</Text>
-              <Text style={styles.summaryLabel}>Total Users</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.summaryBox}
-              onPress={navigateToGuides}
-            >
-              <Text style={styles.summaryNumber}>{guides.length}</Text>
-              <Text style={styles.summaryLabel}>Total Guides</Text>
-            </TouchableOpacity>
-          </View>          
-        </>
       )}
-    </SafeAreaView>
+
+      <TouchableOpacity style={styles.button} onPress={handleAddTrekking}>
+        <Text style={styles.buttonText}>Add Trekking</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: 'black',
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
-  },
-  errorContainer: {
-    padding: 20,
-    backgroundColor: '#ffebee',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#d32f2f',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#d32f2f',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 4,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  summaryBox: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 20,
-    marginHorizontal: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  summaryNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
-  },
-  navigationContainer: {
-    marginTop: 20,
-  },
-  navButton: {
-    backgroundColor: '#4a6da7',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  navButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  }
+  container: { flexGrow: 1, padding: 16, backgroundColor: '#f5f5f5' },
+  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: 'white' },
+  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+  difficultyContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
+  difficultyOption: { padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#999' },
+  selectedDifficulty: { backgroundColor: '#007bff' },
+  difficultyText: { fontSize: 16, color: '#000' },
+  selectedDifficultyText: { color: '#fff' },
+  gearInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  gearInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, backgroundColor: 'white' },
+  addGearButton: { backgroundColor: '#007bff', padding: 10, borderRadius: 8, marginLeft: 8 },
+  addGearText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  gearListContainer: { marginTop: 10, backgroundColor: '#fff', padding: 10, borderRadius: 8 },
+  gearItem: { fontSize: 16, marginVertical: 2 },
+  button: { backgroundColor: '#28a745', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 20 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });
 
 export default AdminDashboard;

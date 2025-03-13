@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import client from '../API/client';
 
 const ImageUploader = ({ route, navigation }) => {
@@ -85,8 +87,19 @@ const ImageUploader = ({ route, navigation }) => {
     }
   };
 
-  const handleSkip = () => {
-    navigation.replace('Dashboard');
+  const handleSkip = async () => {
+    try {
+      const token = route.params?.token;
+  
+      // ✅ Ensure the token is stored
+      if (token) {
+        await AsyncStorage.setItem('token', token);
+      }
+  
+      navigation.replace('Dashboard');
+    } catch (error) {
+      console.error('Error handling skip:', error);
+    }
   };
 
   return (

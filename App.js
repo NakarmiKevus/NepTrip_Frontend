@@ -12,6 +12,7 @@ import ImageUploader from './App/Components/ImageUploader';
 import LoginForm from './App/Pages/LoginForm';
 import SignupForm from './App/Pages/SignupForm';
 import Dashboard from './App/Pages/Dashboard';
+import TrekkingDetails from './App/Pages/TrekkingDetails'; // ✅ Added Trekking Details Page
 import GuideScreen from './App/Pages/Guide';
 import EditProfile from './App/Pages/EditProfile';
 import Weather from './App/Pages/Weather';
@@ -21,8 +22,6 @@ import AdminDashboard from './App/Pages/AdminDashboard';
 import GuideDatabase from './App/Pages/GuideDatabase';
 import UserDetails from './App/Pages/UserDetails';
 import GuideDashboard from './App/Pages/GuideDashboard';
-
-
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -43,7 +42,7 @@ const GuideStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// User Bottom Tab Navigator
+// ✅ User Bottom Tab Navigator (Updated for Dynamic Dashboard)
 const UserBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -95,7 +94,7 @@ const GuideBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Admin Bottom Tab Navigator
+// ✅ Admin Bottom Tab Navigator (Includes Trekking Management)
 const AdminBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -121,7 +120,7 @@ const AdminBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Main Stack Navigator with role-based routing
+// ✅ Main Stack Navigator with Role-Based Routing (Includes Trekking Details)
 const StackNavigator = ({ initialRoute }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AppForm" component={AppForm} />
@@ -133,10 +132,13 @@ const StackNavigator = ({ initialRoute }) => (
     <Stack.Screen name="Dashboard" component={UserBottomTabNavigator} />
     <Stack.Screen name="GuideDashboard" component={GuideBottomTabNavigator} />
     <Stack.Screen name="AdminDashboard" component={AdminBottomTabNavigator} />
+
+    {/* ✅ Trekking Details Page */}
+    <Stack.Screen name="TrekkingDetails" component={TrekkingDetails} />
   </Stack.Navigator>
 );
 
-// Main App Component with auto-login and redirection
+// ✅ Main App Component with Auto-Login & Redirection
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState('LoginForm');

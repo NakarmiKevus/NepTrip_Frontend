@@ -2,7 +2,7 @@ import { registerRootComponent } from 'expo';
 
 import App from './App';
 
-export const apiKey = '95f6d9d0ec40425a81235358252502';
+export const apiKey = ' fdf93e8d61374f5f96b160323251103';
 
 export const weatherImages = {
     'Partly cloudy': require('./assets/images/partlycloudy.png'),

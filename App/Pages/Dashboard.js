@@ -1,119 +1,106 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { SearchBar } from '../Components/SearchBar';
-import { TrekCard } from '../Components/TrekCard';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator,
+  RefreshControl
+} from 'react-native';
+import TrekkingApi from '../API/trekkingApi'; // ✅ Ensure correct API import
 
+const Dashboard = ({ navigation }) => {
+  const [trekkingPlaces, setTrekkingPlaces] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-const categories = [
-  { id: '1', name: 'New' },
-  { id: '2', name: 'Popular' },
-  { id: '3', name: 'Recommended' },
-];
+  useEffect(() => {
+    fetchTrekkingPlaces();
+  }, []);
 
-const treks = [
-  {
-    id: '1',
-    name: 'Everest Base Camp',
-    difficulty: 'Hard',
-    distance: '103.3km',
-    location: 'Sagarmatha National Park',
-    image: 'https://example.com/everest.jpg',
-  },
-  {
-    id: '2',
-    name: 'Annapurna Base Camp',
-    difficulty: 'Moderate',
-    distance: '95km',
-    location: 'Annapurna Conservation Area',
-    image: 'https://example.com/annapurna.jpg',
-  },
-];
+  const fetchTrekkingPlaces = async () => {
+    try {
+      setLoading(true);
+      const response = await TrekkingApi.getAllTrekking();
+      
+      console.log("Fetched Trekking Places:", response); // ✅ Debugging Log
 
-const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }) => {
+      if (response && response.trekkingSpots && Array.isArray(response.trekkingSpots)) {
+        setTrekkingPlaces(response.trekkingSpots);  // ✅ Ensure correct state update
+      } else {
+        setTrekkingPlaces([]); // ✅ Handle empty responses correctly
+      }
+    } catch (error) {
+      console.error("Error fetching trekking places:", error.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchTrekkingPlaces();
+  };
+
+  const renderTrekItem = ({ item }) => {
+    if (!item || !item.name) return null; // ✅ Prevent rendering empty objects
+
+    return (
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('TrekkingDetails', { trekId: item._id })}
+      >
+        <Text style={styles.trekName}>{item.name}</Text>
+        <Text style={styles.trekLocation}>📍 {item.location}</Text>
+        <Text style={styles.trekDifficulty}>⛰ Difficulty: {item.difficulty_level}</Text>
+        <Text style={styles.trekDistance}>📏 Distance: {item.distance_from_user} km</Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={styles.filterContainer}>
-      {categories.map((category) => (
-        <TouchableOpacity
-          key={category.id}
-          style={[
-            styles.categoryItem,
-            selectedCategory === category.id && styles.activeCategory,
-          ]}
-          onPress={() => onSelectCategory(category.id)}
-        >
-          <Text
-            style={[
-              styles.categoryText,
-              selectedCategory === category.id && styles.activeCategoryText,
-            ]}
-          >
-            {category.name}
-          </Text>
-        </TouchableOpacity>
-      ))}
+    <View style={styles.container}>
+      <Text style={styles.header}>Explore Trekking Routes</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" />
+      ) : trekkingPlaces.length > 0 ? (
+        <FlatList
+          data={trekkingPlaces}  // ✅ Ensure `trekkingPlaces` is properly set
+          keyExtractor={(item) => item._id.toString()}
+          renderItem={renderTrekItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      ) : (
+        <Text style={styles.emptyText}>⚠ No trekking places available. Try refreshing.</Text>
+      )}
     </View>
   );
 };
 
-const Dashboard = () => { 
-  const [selectedCategory, setSelectedCategory] = useState(categories[0].id); // Add state for selectedCategory
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <SearchBar />
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory} // Pass function to update state
-      />
-      <ScrollView style={styles.cardsContainer}>
-        {treks.map((trek) => (
-          <TrekCard
-            key={trek.id}
-            trek={trek}
-            onPress={() => console.log('Trek pressed:', trek.name)}
-          />
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-};
-
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop:54,
+  container: { flex: 1, padding: 16, backgroundColor: '#f5f5f5' },
+  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+  card: { 
+    backgroundColor: 'white', 
+    padding: 15, 
+    marginVertical: 8, 
+    borderRadius: 8, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    elevation: 2 
   },
-  cardsContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 10,
-    
-
-  },
-  categoryItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginHorizontal: 5,
-    borderRadius: 20,
-    backgroundColor: '#ddd',
-  },
-  activeCategory: {
-    backgroundColor: 'black',
-  },
-  categoryText: {
-    color: 'black',
-    fontWeight: '500',
-  },
-  activeCategoryText: {
-    color: '#fff',
-  },
+  trekName: { fontSize: 18, fontWeight: 'bold' },
+  trekLocation: { fontSize: 16, color: '#555' },
+  trekDifficulty: { fontSize: 14, color: '#888', marginTop: 4 },
+  trekDistance: { fontSize: 14, color: '#666', marginTop: 4 },
+  emptyText: { fontSize: 16, textAlign: 'center', marginTop: 20, color: '#777' }
 });
 
 export default Dashboard;

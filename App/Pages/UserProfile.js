@@ -22,76 +22,66 @@ const UserProfile = ({ navigation }) => {
     avatar: "",
     phoneNumber: "",
     address: "",
-    // Stats (could be fetched from separate endpoints)
     treks: 0,
     guides: 0,
     reviews: 0,
   });
 
-  // Fetch user profile data from the backend
+  // Fetch user profile data
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
       
-      // Try to get user from AsyncStorage first
-      const userJSON = await AsyncStorage.getItem('user');
+      // ✅ Get user data and token from AsyncStorage
       const token = await AsyncStorage.getItem('token');
-      
-      if (userJSON && token) {
-        // If we have user data cached, show it immediately
+      const userJSON = await AsyncStorage.getItem('user');
+
+      if (!token) {
+        Alert.alert('Session Expired', 'Please log in again.', [
+          { text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'AppForm' }] }) }
+        ]);
+        return;
+      }
+
+      if (userJSON) {
         const userData = JSON.parse(userJSON);
-        setUser({
-          ...user,
+        setUser((prevUser) => ({
+          ...prevUser,
           fullname: userData.fullname,
           email: userData.email,
-          avatar: userData.avatar && userData.avatar !== '' ? userData.avatar : 'https://via.placeholder.com/150',
-        });
-        
-        // Then try to get fresh data from the API
-        try {
-          const response = await client.get('/profile', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (response.data.success) {
-            // Update user state with the latest data
-            setUser({
-              ...user,
-              fullname: response.data.user.fullname,
-              email: response.data.user.email,
-              avatar: userData.avatar && userData.avatar !== '' ? userData.avatar : require('../../assets/images/Profile.png'),
-              phoneNumber: response.data.user.phoneNumber || '',
-              address: response.data.user.address || '',
-              treks: response.data.user.treks || 0,
-              guides: response.data.user.guides || 0,
-              reviews: response.data.user.reviews || 0,
-            });
-            
-            // Also update the cached user data
-            await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-          }
-        } catch (apiError) {
-          console.log('Could not fetch fresh profile data:', apiError);
-          // Continue showing cached data, don't show error
-        }
-      } else {
-        // If no token or user data in AsyncStorage, redirect to login
-        Alert.alert('Session Expired', 'Please login again', [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate to landing page
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'AppForm' }], // Change to your actual landing screen name
-              });
-            }
-          }
-        ]);
+          avatar: userData.avatar || '',
+          phoneNumber: userData.phoneNumber || '',
+          address: userData.address || '',
+          treks: userData.treks || 0,
+          guides: userData.guides || 0,
+          reviews: userData.reviews || 0,
+        }));
+      }
+
+      // ✅ Fetch fresh user data from API
+      const response = await client.get('/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data.success) {
+        const newUser = response.data.user;
+        setUser((prevUser) => ({
+          ...prevUser,
+          fullname: newUser.fullname,
+          email: newUser.email,
+          avatar: newUser.avatar || '',
+          phoneNumber: newUser.phoneNumber || '',
+          address: newUser.address || '',
+          treks: newUser.treks || 0,
+          guides: newUser.guides || 0,
+          reviews: newUser.reviews || 0,
+        }));
+
+        // ✅ Store updated user in AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(newUser));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // Don't show alert here, just finish loading
     } finally {
       setLoading(false);
     }
@@ -104,11 +94,8 @@ const UserProfile = ({ navigation }) => {
       await AsyncStorage.removeItem('user');
       
       // Reset navigation stack and go to landing page (AppForm)
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'AppForm' }], // Navigate to the landing page
-      });
-      
+      navigation.reset({ index: 0, routes: [{ name: 'AppForm' }] });
+
       Alert.alert('Logged Out', 'You have been successfully logged out');
     } catch (error) {
       console.error('Logout error:', error);
@@ -124,12 +111,9 @@ const UserProfile = ({ navigation }) => {
   // Fetch profile data when component mounts
   useEffect(() => {
     fetchUserProfile();
-    
-    // Add navigation listener to refresh data when screen is focused
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchUserProfile();
-    });
 
+    // ✅ Refresh user profile when screen is focused
+    const unsubscribe = navigation.addListener('focus', fetchUserProfile);
     return unsubscribe;
   }, [navigation]);
 
@@ -146,12 +130,14 @@ const UserProfile = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-        <Image 
-  source={user.avatar && user.avatar !== '' && typeof user.avatar === 'string' 
-    ? { uri: user.avatar } 
-    : user.avatar || require('../../assets/images/Profile.png')} 
-  style={styles.avatar} 
-/>
+          <Image 
+            source={
+              user.avatar && user.avatar !== '' && typeof user.avatar === 'string' 
+                ? { uri: user.avatar } 
+                : require('../../assets/images/Profile.png')
+            } 
+            style={styles.avatar} 
+          />
           <Text style={styles.name}>{user.fullname}</Text>
           <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
