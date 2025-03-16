@@ -12,11 +12,13 @@ import ImageUploader from './App/Components/ImageUploader';
 import LoginForm from './App/Pages/LoginForm';
 import SignupForm from './App/Pages/SignupForm';
 import Dashboard from './App/Pages/Dashboard';
-import TrekkingDetails from './App/Pages/TrekkingDetails'; // ✅ Added Trekking Details Page
+import TrekkingDetails from './App/Pages/TrekkingDetails';
 import GuideScreen from './App/Pages/Guide';
 import EditProfile from './App/Pages/EditProfile';
 import Weather from './App/Pages/Weather';
 import ConfirmBooking from './App/Pages/ConfirmBooking';
+import BookingDetailsForm from './App/Pages/BookingDetailsForm';
+import BookingStatusLoader from './App/Pages/BookingStatusLoader'; // ✅ Added Loader Page
 import UserProfile from './App/Pages/UserProfile';
 import AdminDashboard from './App/Pages/AdminDashboard';
 import GuideDatabase from './App/Pages/GuideDatabase';
@@ -26,7 +28,7 @@ import GuideDashboard from './App/Pages/GuideDashboard';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Profile Stack Navigator
+// ✅ Profile Stack Navigator
 const ProfileStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="UserProfile" component={UserProfile} />
@@ -34,15 +36,17 @@ const ProfileStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// Guide Stack Navigator
+// ✅ Guide Stack Navigator (Updated to Include BookingStatusLoader)
 const GuideStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="GuideMain" component={GuideScreen} />
     <Stack.Screen name="ConfirmBooking" component={ConfirmBooking} />
+    <Stack.Screen name="BookingDetailsForm" component={BookingDetailsForm} />
+    <Stack.Screen name="BookingStatusLoader" component={BookingStatusLoader} />
   </Stack.Navigator>
 );
 
-// ✅ User Bottom Tab Navigator (Updated for Dynamic Dashboard)
+// ✅ User Bottom Tab Navigator
 const UserBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -69,7 +73,7 @@ const UserBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Guide Bottom Tab Navigator
+// ✅ Guide Bottom Tab Navigator
 const GuideBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -94,7 +98,7 @@ const GuideBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// ✅ Admin Bottom Tab Navigator (Includes Trekking Management)
+// ✅ Admin Bottom Tab Navigator
 const AdminBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -120,7 +124,7 @@ const AdminBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// ✅ Main Stack Navigator with Role-Based Routing (Includes Trekking Details)
+// ✅ Main Stack Navigator
 const StackNavigator = ({ initialRoute }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AppForm" component={AppForm} />

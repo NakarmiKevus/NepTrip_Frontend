@@ -33,9 +33,9 @@ bookingClient.interceptors.request.use(
 */
 
 // 1) Request a guide
-const requestBooking = async (date) => {
-  const response = await bookingClient.post('/request', { date });
-  return response.data; // { success, message, booking }
+const requestBooking = async (bookingData) => {
+  const response = await bookingClient.post('/request', bookingData);
+  return response.data;
 };
 
 // 2) Guide fetches booking requests
@@ -62,10 +62,18 @@ const getBookingStatus = async (bookingId) => {
   return response.data; // { success, booking }
 };
 
+const getLatestBooking = async () => {
+  const response = await bookingClient.get('/latest-booking');
+  return response.data;
+};
+
+
+
 export default {
   requestBooking,
   getBookingRequests,
   respondToBooking,
   getUserBookings,
-  getBookingStatus
+  getBookingStatus,
+  getLatestBooking,
 };

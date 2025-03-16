@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Button,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-  StyleSheet
-} from 'react-native';
+import { View, Text, Button, FlatList, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import bookingApi from '../API/bookingApi';
 
 const GuideDashboard = () => {
@@ -40,7 +32,6 @@ const GuideDashboard = () => {
       const data = await bookingApi.respondToBooking(bookingId, status);
       if (data.success) {
         Alert.alert('Success', data.message);
-        // Remove or update the booking in local state
         setRequests((prev) => prev.filter((req) => req._id !== bookingId));
       } else {
         Alert.alert('Error', data.message || 'Failed to update booking');
@@ -53,19 +44,18 @@ const GuideDashboard = () => {
 
   const renderRequestItem = ({ item }) => (
     <View style={styles.requestItem}>
-      <Text>User: {item.user?.fullname}</Text>
-      <Text>Email: {item.user?.email}</Text>
+      <Text>User: {item.fullname}</Text>
+      <Text>Email: {item.email}</Text>
+      <Text>Phone: {item.phone}</Text>
+      <Text>Address: {item.address}</Text>
+      <Text>People Count: {item.peopleCount}</Text>
+      <Text>Destination: {item.destination}</Text>
       <Text>Date: {item.date}</Text>
+
       <View style={styles.buttonRow}>
-        <Button
-          title="Accept"
-          onPress={() => handleRespond(item._id, 'accepted')}
-        />
+        <Button title="Accept" onPress={() => handleRespond(item._id, 'accepted')} />
         <View style={{ width: 16 }} />
-        <Button
-          title="Decline"
-          onPress={() => handleRespond(item._id, 'declined')}
-        />
+        <Button title="Decline" onPress={() => handleRespond(item._id, 'declined')} />
       </View>
     </View>
   );
@@ -84,11 +74,7 @@ const GuideDashboard = () => {
       {requests.length === 0 ? (
         <Text>No pending requests.</Text>
       ) : (
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => item._id}
-          renderItem={renderRequestItem}
-        />
+        <FlatList data={requests} keyExtractor={(item) => item._id} renderItem={renderRequestItem} />
       )}
     </View>
   );

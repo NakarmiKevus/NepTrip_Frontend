@@ -1,42 +1,41 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import bookingApi from '../API/bookingApi';
+import { View, Text, Button, Alert, StyleSheet } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+import { useNavigation } from '@react-navigation/native';
 
 const ConfirmBooking = () => {
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const navigation = useNavigation();
 
-  const handleConfirmBooking = async () => {
+  const handleConfirm = () => {
     if (!date) {
-      Alert.alert('Error', 'Please enter/select a date.');
+      Alert.alert('Error', 'Please select a date.');
       return;
     }
-    try {
-      const response = await bookingApi.requestBooking(date);
-      if (response.success) {
-        Alert.alert('Success', response.message || 'Booking request sent!');
-        // Optionally navigate the user somewhere else, e.g. to their Dashboard
-        // navigation.navigate('Dashboard');
-      } else {
-        Alert.alert('Error', response.message || 'Failed to send booking request.');
-      }
-    } catch (error) {
-      console.log('Error booking:', error);
-      Alert.alert('Error', 'An error occurred while sending booking request.');
-    }
+    navigation.navigate('BookingDetailsForm', { selectedDate: date.toISOString().split('T')[0] });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Confirm Booking</Text>
-      <Text>Select a date for your guide booking:</Text>
-      {/* Simple text input for date; you can replace with a DatePicker */}
-      <TextInput
-        placeholder="YYYY-MM-DD"
-        value={date}
-        onChangeText={setDate}
-        style={styles.input}
-      />
-      <Button title="Confirm Booking" onPress={handleConfirmBooking} />
+      <Text style={styles.title}>Select a Date for Your Guide Booking</Text>
+      <Button title="Pick a Date" onPress={() => setShowPicker(true)} />
+      
+      {showPicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="calendar"
+          onChange={(event, selectedDate) => {
+            setShowPicker(false);
+            if (selectedDate) setDate(selectedDate);
+          }}
+        />
+      )}
+
+      <Text style={styles.dateText}>Selected Date: {date.toISOString().split('T')[0]}</Text>
+      <Button title="Continue" onPress={handleConfirm} />
     </View>
   );
 };
@@ -47,15 +46,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 18,
     marginBottom: 12,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    marginVertical: 8,
+  dateText: {
+    marginVertical: 10,
+    fontSize: 16,
   },
 });
