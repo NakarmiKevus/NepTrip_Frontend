@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl
 } from 'react-native';
-import TrekkingApi from '../API/trekkingApi'; // ✅ Ensure correct API import
+import TrekkingApi from '../API/trekkingApi'; //  Ensure correct API import
 
 const Dashboard = ({ navigation }) => {
   const [trekkingPlaces, setTrekkingPlaces] = useState([]);
@@ -24,12 +24,12 @@ const Dashboard = ({ navigation }) => {
       setLoading(true);
       const response = await TrekkingApi.getAllTrekking();
       
-      console.log("Fetched Trekking Places:", response); // ✅ Debugging Log
+      console.log("Fetched Trekking Places:", response); //  Debugging Log
 
       if (response && response.trekkingSpots && Array.isArray(response.trekkingSpots)) {
-        setTrekkingPlaces(response.trekkingSpots);  // ✅ Ensure correct state update
+        setTrekkingPlaces(response.trekkingSpots);  //  Ensure correct state update
       } else {
-        setTrekkingPlaces([]); // ✅ Handle empty responses correctly
+        setTrekkingPlaces([]); //  Handle empty responses correctly
       }
     } catch (error) {
       console.error("Error fetching trekking places:", error.message);
@@ -45,7 +45,7 @@ const Dashboard = ({ navigation }) => {
   };
 
   const renderTrekItem = ({ item }) => {
-    if (!item || !item.name) return null; // ✅ Prevent rendering empty objects
+    if (!item || !item.name) return null; //  Prevent rendering empty objects
 
     return (
       <TouchableOpacity 
@@ -53,9 +53,9 @@ const Dashboard = ({ navigation }) => {
         onPress={() => navigation.navigate('TrekkingDetails', { trekId: item._id })}
       >
         <Text style={styles.trekName}>{item.name}</Text>
-        <Text style={styles.trekLocation}>📍 {item.location}</Text>
-        <Text style={styles.trekDifficulty}>⛰ Difficulty: {item.difficulty_level}</Text>
-        <Text style={styles.trekDistance}>📏 Distance: {item.distance_from_user} km</Text>
+        <Text style={styles.trekLocation}> {item.location}</Text>
+        <Text style={styles.trekDifficulty}>Difficulty: {item.difficulty_level}</Text>
+        <Text style={styles.trekDistance}> Distance: {item.distance_from_user} km</Text>
       </TouchableOpacity>
     );
   };
@@ -68,7 +68,7 @@ const Dashboard = ({ navigation }) => {
         <ActivityIndicator size="large" color="#007bff" />
       ) : trekkingPlaces.length > 0 ? (
         <FlatList
-          data={trekkingPlaces}  // ✅ Ensure `trekkingPlaces` is properly set
+          data={trekkingPlaces}  //  Ensure `trekkingPlaces` is properly set
           keyExtractor={(item) => item._id.toString()}
           renderItem={renderTrekItem}
           refreshControl={

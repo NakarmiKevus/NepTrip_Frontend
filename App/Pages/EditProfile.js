@@ -371,6 +371,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 10,
+    marginBottom:25
   },
   saveButtonDisabled: {
     opacity: 0.7,

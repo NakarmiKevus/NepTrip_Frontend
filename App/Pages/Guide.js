@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,26 +8,31 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import userApi from '../API/userApi';
 
 const GuideScreen = () => {
   const navigation = useNavigation();
   const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchGuide();
-  }, []);
+  // Fetch guide details when screen loads and refresh when it comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchGuide();
+    }, [])
+  );
 
   const fetchGuide = async () => {
     try {
       setLoading(true);
-      const data = await userApi.getGuides();
+      const data = await userApi.getGuides(); // Fetch guide details dynamically
       if (data.success && data.guides?.length > 0) {
-        setGuide(data.guides[0]); // Fetch first guide
+        setGuide(data.guides[0]); // Assuming there's only one guide
       } else {
         Alert.alert('Error', 'No guide found.');
       }
@@ -36,6 +41,7 @@ const GuideScreen = () => {
       Alert.alert('Error', 'Failed to load guide details.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -43,7 +49,12 @@ const GuideScreen = () => {
     navigation.navigate('ConfirmBooking');
   };
 
-  if (loading) {
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchGuide();
+  };
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="black" />
@@ -53,24 +64,22 @@ const GuideScreen = () => {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView 
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       {guide ? (
         <>
           {/* Profile Section */}
           <View style={styles.profileSection}>
             {/* Guide Image */}
             <Image
-              source={
-                guide.avatar
-                  ? { uri: guide.avatar }
-                  : require('../../assets/images/Profile.png')
-              }
+              source={guide.avatar ? { uri: guide.avatar } : require('../../assets/images/Profile.png')}
               style={styles.avatar}
             />
 
             {/* Guide Name */}
             <Text style={styles.name}>{guide.fullname}</Text>
-            {/* <Text style={styles.subText}>{guide.fullname}</Text> */}
 
             {/* Star Rating */}
             <View style={styles.ratingContainer}>
@@ -78,18 +87,30 @@ const GuideScreen = () => {
                 <Feather key={index} name="star" size={20} color="black" />
               ))}
             </View>
+            
+            {/* Trek count badge */}
+            <View style={styles.trekCountContainer}>
+              <Feather name="map" size={16} color="white" />
+              <Text style={styles.trekCountText}>
+                {guide.trekCount || 0} treks completed
+              </Text>
+            </View>
           </View>
 
           {/* Divider */}
           <View style={styles.divider} />
 
-          {/* Details Section */}
-          <View style={styles.detailsSection}>
-            {renderInfoField('Email', guide.email)}
-            {renderInfoField('Phone Number', guide.phone)}
-            {renderInfoField('Address', guide.address)}
-            {renderInfoField('Language', guide.language)}
-            {renderInfoField('Experience', guide.experience)}
+          {/* Details Section (Styled like 1st Screenshot) */}
+          <View style={styles.personalInfoContainer}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+
+            {renderInfoField('user', 'Full Name', guide.fullname)}
+            {renderInfoField('mail', 'Email', guide.email)}
+            {renderInfoField('phone', 'Phone Number', guide.phoneNumber)}
+            {renderInfoField('map-pin', 'Address', guide.address)}
+            {renderInfoField('globe', 'Language', guide.language)}
+            {renderInfoField('briefcase', 'Experience', guide.experience)}
+            {renderInfoField('map', 'Number of Treks', guide.trekCount || '0')}
 
             {/* Book Button */}
             <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
@@ -104,21 +125,22 @@ const GuideScreen = () => {
   );
 };
 
-// Function to render greyed-out input fields
-const renderInfoField = (label, value) => (
-  <>
-    <Text style={styles.label}>{label}</Text>
-    <View style={styles.inputBox}>
-      <Text style={styles.inputText}>{value || 'N/A'}</Text>
+// Function to render info fields with icons (like first screenshot)
+const renderInfoField = (iconName, label, value) => (
+  <View style={styles.infoItem}>
+    <View style={styles.infoHeader}>
+      <Feather name={iconName} size={20} color="#666" />
+      <Text style={styles.infoLabel}>{label}</Text>
     </View>
-  </>
+    <Text style={styles.infoValue}>{value || 'N/A'}</Text>
+  </View>
 );
 
 export default GuideScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
   },
   loaderContainer: {
@@ -134,7 +156,7 @@ const styles = StyleSheet.create({
   profileSection: {
     width: '100%',
     alignItems: 'center',
-    paddingTop:100,
+    paddingTop: 100,
     paddingBottom: 10,
     backgroundColor: '#f9f9f9',
   },
@@ -143,7 +165,6 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 80,
     marginBottom: 10,
-
   },
   name: {
     fontSize: 25,
@@ -151,16 +172,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
-  subText: {
-    fontSize: 14,
-    color: '#777',
-    marginBottom: 8,
-  },
   ratingContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 10,
-    
+  },
+  trekCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2196F3',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 5,
+  },
+  trekCountText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   divider: {
     width: '100%',
@@ -168,32 +197,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
     marginVertical: 10,
   },
-  detailsSection: {
-    width: '90%',
+  personalInfoContainer: {
+    paddingHorizontal: 20,
+    width: '100%',
   },
-  label: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  infoItem: {
+    marginBottom: 15,
+    backgroundColor: '#f8f8f8',
+    padding: 15,
+    borderRadius: 10,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  infoLabel: {
     fontSize: 14,
-    color: 'black',
-    fontWeight: '500',
-    marginBottom: 4,
+    color: '#666',
+    marginLeft: 10,
   },
-  inputBox: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-  inputText: {
-    fontSize: 14,
+  infoValue: {
+    fontSize: 16,
     color: '#333',
+    marginLeft: 30,
   },
   bookButton: {
-    width: '100%',
+    marginTop: 20,
     backgroundColor: 'black',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 10,
+    marginHorizontal: 20,
+    borderRadius: 8,
+    marginBottom:20
   },
   bookButtonText: {
     color: 'white',

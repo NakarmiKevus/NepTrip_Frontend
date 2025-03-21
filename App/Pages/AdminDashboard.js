@@ -8,7 +8,7 @@ import {
   ScrollView, 
   StyleSheet 
 } from 'react-native';
-import TrekkingApi from '../API/trekkingApi'; // ✅ Ensure correct API import
+import TrekkingApi from '../API/trekkingApi'; // Ensure correct API import
 
 const AdminDashboard = () => {
   const [name, setName] = useState('');
