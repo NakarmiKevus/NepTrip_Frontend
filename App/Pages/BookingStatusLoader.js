@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import bookingApi from '../API/bookingApi';
 import { useNavigation } from '@react-navigation/native';
@@ -24,18 +25,9 @@ const BookingStatusLoader = () => {
   const navigation = useNavigation();
 
   useEffect(() => {
-    // Initial fetch
     fetchBookingStatus();
-
-    // Set up interval to check status every 5 seconds
     const statusInterval = setInterval(fetchBookingStatus, 5000);
-    
-    // Set up interval to increment time elapsed every second
-    const timeInterval = setInterval(() => {
-      setTimeElapsed(prev => prev + 1);
-    }, 1000);
-
-    // Clean up intervals on component unmount
+    const timeInterval = setInterval(() => setTimeElapsed(prev => prev + 1), 1000);
     return () => {
       clearInterval(statusInterval);
       clearInterval(timeInterval);
@@ -46,24 +38,24 @@ const BookingStatusLoader = () => {
     try {
       setLoading(true);
       const response = await bookingApi.getLatestBooking();
-      
       if (response.success) {
+        const newStatus = response.booking.status;
+        const alertKey = `alert_shown_for_${response.booking._id}`;
+
         setBooking(response.booking);
-        setStatus(response.booking.status);
+        setStatus(newStatus);
         setError(null);
 
-        // If booking status is not pending anymore, notify user
-        if (response.booking.status !== 'pending' && status === 'pending') {
-          Alert.alert(
-            'Booking Update',
-            `Your booking has been ${response.booking.status}!`
-          );
+        const alreadyShown = await AsyncStorage.getItem(alertKey);
+        if (newStatus !== 'pending' && alreadyShown !== 'true') {
+          Alert.alert('Booking Update', `Your booking has been ${newStatus}!`);
+          await AsyncStorage.setItem(alertKey, 'true');
         }
       } else {
         setError('Unable to fetch booking status. Please try again.');
       }
-    } catch (error) {
-      console.error('Error fetching booking status:', error);
+    } catch (err) {
+      console.error(err);
       setError('An error occurred while checking your booking status.');
     } finally {
       setLoading(false);
@@ -82,15 +74,14 @@ const BookingStatusLoader = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // If user wants to go back to dashboard
   const handleBackPress = () => {
     if (status === 'pending') {
       Alert.alert(
         'Go Back?',
-        'Your booking request will continue to be processed. You can check its status later from your profile.',
+        'Your booking request will continue to be processed. You can check its status later.',
         [
           { text: 'Stay Here', style: 'cancel' },
-          { text: 'Go Back', onPress: () => navigation.navigate('Dashboard') }
+          { text: 'Go Back', onPress: () => navigation.navigate('Dashboard') },
         ]
       );
     } else {
@@ -99,26 +90,17 @@ const BookingStatusLoader = () => {
   };
 
   const getStatusColor = () => {
-    switch (status) {
-      case 'accepted':
-        return '#4CAF50'; // Green
-      case 'declined':
-        return '#F44336'; // Red
-      default:
-        return '#FFA500'; // Orange for pending
-    }
+    if (status === 'accepted') return '#4CAF50';
+    if (status === 'declined') return '#F44336';
+    return '#FFA500';
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#2196F3']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2196F3']} />
         }
       >
         <View style={styles.header}>
@@ -126,105 +108,71 @@ const BookingStatusLoader = () => {
             <Feather name="arrow-left" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Booking Status</Text>
-          <View style={{ width: 24 }} /> {/* Empty view for balanced header */}
+          <View style={{ width: 24 }} />
         </View>
-        
+
         <View style={styles.statusCard}>
           <View style={styles.iconContainer}>
             {status === 'pending' ? (
               <ActivityIndicator size="large" color="#FFA500" />
-            ) : status === 'accepted' ? (
-              <Feather name="check-circle" size={60} color="#4CAF50" />
             ) : (
-              <Feather name="x-circle" size={60} color="#F44336" />
+              <Feather
+                name={status === 'accepted' ? 'check-circle' : 'x-circle'}
+                size={60}
+                color={getStatusColor()}
+              />
             )}
           </View>
-          
+
           <Text style={[styles.statusTitle, { color: getStatusColor() }]}>
-            {status === 'pending' 
-              ? 'Awaiting Guide Response' 
-              : status === 'accepted' 
-                ? 'Booking Accepted!' 
-                : 'Booking Declined'}
+            {status === 'pending' ? 'Awaiting Guide Response' : status === 'accepted' ? 'Booking Accepted!' : 'Booking Declined'}
           </Text>
-          
+
           <Text style={styles.statusDescription}>
-            {status === 'pending' 
-              ? 'Your booking request has been sent to the guide. Please wait for their response.' 
-              : status === 'accepted' 
-                ? 'Your guide has accepted your booking request. You are all set for your trek!' 
-                : 'Unfortunately, the guide has declined your booking request. You can try booking with another guide.'}
+            {status === 'pending'
+              ? 'Your booking request has been sent. Please wait for guide’s response.'
+              : status === 'accepted'
+              ? 'Your booking is accepted. Happy trekking!'
+              : 'Guide declined your request. Try booking again later.'}
           </Text>
-          
+
           {status === 'pending' && (
             <View style={styles.waitingInfo}>
               <Text style={styles.waitingTime}>Waiting time: {formatTime(timeElapsed)}</Text>
-              <Text style={styles.refreshInfo}>
-                Pull down to refresh or wait for automatic update
-              </Text>
+              <Text style={styles.refreshInfo}>Pull down to refresh or wait</Text>
             </View>
           )}
         </View>
-        
+
         {booking && (
           <View style={styles.bookingDetails}>
             <Text style={styles.detailsTitle}>Booking Details</Text>
-            
-            <View style={styles.detailItem}>
-              <Feather name="map-pin" size={18} color="#666" />
-              <Text style={styles.detailText}>Destination: {booking.destination}</Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Feather name="calendar" size={18} color="#666" />
-              <Text style={styles.detailText}>Date: {booking.date}</Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Feather name="users" size={18} color="#666" />
-              <Text style={styles.detailText}>Group Size: {booking.peopleCount} people</Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Feather name="clock" size={18} color="#666" />
-              <Text style={styles.detailText}>
-                Request sent: {new Date(booking.createdAt).toLocaleString()}
-              </Text>
-            </View>
-            
+            <Detail label="Destination" value={booking.destination} icon="map-pin" />
+            <Detail label="Date" value={booking.date} icon="calendar" />
+            <Detail label="Group Size" value={`${booking.peopleCount} people`} icon="users" />
+            <Detail label="Request sent" value={new Date(booking.createdAt).toLocaleString()} icon="clock" />
             {status !== 'pending' && (
-              <View style={styles.detailItem}>
-                <Feather 
-                  name={status === 'accepted' ? "check" : "x"} 
-                  size={18} 
-                  color={status === 'accepted' ? "#4CAF50" : "#F44336"} 
-                />
-                <Text style={styles.detailText}>
-                  Response received: {new Date(booking.updatedAt).toLocaleString()}
-                </Text>
-              </View>
+              <Detail
+                label="Response received"
+                value={new Date(booking.updatedAt).toLocaleString()}
+                icon={status === 'accepted' ? 'check' : 'x'}
+              />
             )}
           </View>
         )}
-        
+
         {error && (
           <View style={styles.errorContainer}>
             <Feather name="alert-triangle" size={24} color="#F44336" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={fetchBookingStatus}
-            >
+            <TouchableOpacity style={styles.retryButton} onPress={fetchBookingStatus}>
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
-        
+
         {status !== 'pending' && (
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Dashboard')}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Dashboard')}>
             <Text style={styles.actionButtonText}>Back to Dashboard</Text>
           </TouchableOpacity>
         )}
@@ -232,6 +180,13 @@ const BookingStatusLoader = () => {
     </SafeAreaView>
   );
 };
+
+const Detail = ({ label, value, icon }) => (
+  <View style={styles.detailItem}>
+    <Feather name={icon} size={18} color="#666" />
+    <Text style={styles.detailText}>{label}: {value}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {

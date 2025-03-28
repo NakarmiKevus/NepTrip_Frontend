@@ -13,6 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import userApi from '../API/userApi';
+import bookingApi from '../API/bookingApi';
 
 const GuideScreen = () => {
   const navigation = useNavigation();
@@ -20,19 +21,35 @@ const GuideScreen = () => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch guide details when screen loads and refresh when it comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchGuide();
+      checkBookingAndRedirect();
     }, [])
   );
+
+  const checkBookingAndRedirect = async () => {
+    try {
+      const response = await bookingApi.getLatestBooking();
+      if (response.success) {
+        const booking = response.booking;
+        if (booking.status === 'pending' || booking.status === 'accepted') {
+          navigation.replace('BookingStatusLoader');
+          return;
+        }
+      }
+      fetchGuide(); // If no redirect, fetch guide normally
+    } catch (error) {
+      console.log('Error checking booking:', error);
+      fetchGuide();
+    }
+  };
 
   const fetchGuide = async () => {
     try {
       setLoading(true);
-      const data = await userApi.getGuides(); // Fetch guide details dynamically
+      const data = await userApi.getGuides();
       if (data.success && data.guides?.length > 0) {
-        setGuide(data.guides[0]); // Assuming there's only one guide
+        setGuide(data.guides[0]);
       } else {
         Alert.alert('Error', 'No guide found.');
       }
@@ -64,31 +81,23 @@ const GuideScreen = () => {
   }
 
   return (
-    <ScrollView 
+    <ScrollView
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {guide ? (
         <>
-          {/* Profile Section */}
           <View style={styles.profileSection}>
-            {/* Guide Image */}
             <Image
               source={guide.avatar ? { uri: guide.avatar } : require('../../assets/images/Profile.png')}
               style={styles.avatar}
             />
-
-            {/* Guide Name */}
             <Text style={styles.name}>{guide.fullname}</Text>
-
-            {/* Star Rating */}
             <View style={styles.ratingContainer}>
               {[...Array(5)].map((_, index) => (
                 <Feather key={index} name="star" size={20} color="black" />
               ))}
             </View>
-            
-            {/* Trek count badge */}
             <View style={styles.trekCountContainer}>
               <Feather name="map" size={16} color="white" />
               <Text style={styles.trekCountText}>
@@ -97,13 +106,10 @@ const GuideScreen = () => {
             </View>
           </View>
 
-          {/* Divider */}
           <View style={styles.divider} />
 
-          {/* Details Section (Styled like 1st Screenshot) */}
           <View style={styles.personalInfoContainer}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
-
             {renderInfoField('user', 'Full Name', guide.fullname)}
             {renderInfoField('mail', 'Email', guide.email)}
             {renderInfoField('phone', 'Phone Number', guide.phoneNumber)}
@@ -111,8 +117,6 @@ const GuideScreen = () => {
             {renderInfoField('globe', 'Language', guide.language)}
             {renderInfoField('briefcase', 'Experience', guide.experience)}
             {renderInfoField('map', 'Number of Treks', guide.trekCount || '0')}
-
-            {/* Book Button */}
             <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
               <Text style={styles.bookButtonText}>Book</Text>
             </TouchableOpacity>
@@ -125,7 +129,6 @@ const GuideScreen = () => {
   );
 };
 
-// Function to render info fields with icons (like first screenshot)
 const renderInfoField = (iconName, label, value) => (
   <View style={styles.infoItem}>
     <View style={styles.infoHeader}>
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 20,
     borderRadius: 8,
-    marginBottom:20
+    marginBottom: 20,
   },
   bookButtonText: {
     color: 'white',

@@ -1,16 +1,16 @@
-// FRONTEND/App/API/client.js
+
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const client = axios.create({
-  baseURL: 'http://192.168.0.105:8000/api/user', // Adjust IP/port as needed
+  baseURL: 'http://192.168.0.105:8000/api/user', 
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   },
 });
 
-// Attach the token to every request if it exists
+
 client.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('token');

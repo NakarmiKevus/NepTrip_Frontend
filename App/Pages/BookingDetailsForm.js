@@ -29,23 +29,19 @@ const BookingDetailsForm = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasPendingBooking, setHasPendingBooking] = useState(false);
 
-  // Check if the user has a pending booking before submitting a new request
   useEffect(() => {
-    const checkPendingBooking = async () => {
+    const checkBooking = async () => {
       try {
         const response = await bookingApi.getLatestBooking();
-        if (response.success && response.booking.status === 'pending') {
-          setHasPendingBooking(true);
-          navigation.replace('BookingStatusLoader'); // Redirect to loader page
+        if (response.success && response.booking.status !== 'completed') {
+          navigation.replace('BookingStatusLoader');
         }
       } catch (error) {
-        console.log('No pending booking found:', error);
+        console.log('No ongoing booking:', error);
       }
     };
-
-    checkPendingBooking();
+    checkBooking();
   }, []);
 
   const handleChange = (key, value) => {
@@ -60,14 +56,8 @@ const BookingDetailsForm = () => {
       return;
     }
 
-    if (hasPendingBooking) {
-      Alert.alert('Error', 'You already have a pending booking. Please wait for a response.');
-      return;
-    }
-
     try {
       setIsSubmitting(true);
-
       const response = await bookingApi.requestBooking({
         ...formData,
         date: selectedDate,
@@ -77,107 +67,45 @@ const BookingDetailsForm = () => {
 
       if (response.success) {
         Alert.alert('Success', 'Booking request sent!');
-        navigation.replace('BookingStatusLoader'); // Redirect to loader page
+        navigation.replace('BookingStatusLoader');
       } else {
         Alert.alert('Error', response.message || 'Failed to send booking request.');
       }
     } catch (error) {
       setIsSubmitting(false);
       console.log('Error booking:', error);
-      Alert.alert('Error', 'An error occurred while sending booking request.');
+      Alert.alert('Error', 'Something went wrong.');
     }
-  };
-
-  const handleBackPress = () => {
-    navigation.goBack();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
-        <View style={{ width: 24 }} /> {/* Empty view for balanced header */}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.dateInfoContainer}>
           <Feather name="calendar" size={20} color="#666" />
-          <Text style={styles.dateInfoText}>
-            Booking for: {selectedDate}
-          </Text>
+          <Text style={styles.dateInfoText}>Booking for: {selectedDate}</Text>
         </View>
 
         <View style={styles.formContainer}>
           <Text style={styles.sectionTitle}>Personal Details</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              placeholder="Enter your full name"
-              value={formData.fullname}
-              onChangeText={(value) => handleChange('fullname', value)}
-              style={styles.input}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              placeholder="Enter your email"
-              value={formData.email}
-              onChangeText={(value) => handleChange('email', value)}
-              style={styles.input}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              placeholder="Enter your phone number"
-              value={formData.phone}
-              onChangeText={(value) => handleChange('phone', value)}
-              style={styles.input}
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address</Text>
-            <TextInput
-              placeholder="Enter your address"
-              value={formData.address}
-              onChangeText={(value) => handleChange('address', value)}
-              style={styles.input}
-            />
-          </View>
+          <FormInput label="Full Name" value={formData.fullname} onChangeText={(val) => handleChange('fullname', val)} />
+          <FormInput label="Email Address" value={formData.email} onChangeText={(val) => handleChange('email', val)} keyboardType="email-address" />
+          <FormInput label="Phone Number" value={formData.phone} onChangeText={(val) => handleChange('phone', val)} keyboardType="phone-pad" />
+          <FormInput label="Address" value={formData.address} onChangeText={(val) => handleChange('address', val)} />
 
           <Text style={styles.sectionTitle}>Trip Details</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Number of People</Text>
-            <TextInput
-              placeholder="Enter number of people"
-              value={formData.peopleCount}
-              onChangeText={(value) => handleChange('peopleCount', value)}
-              style={styles.input}
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Destination</Text>
-            <TextInput
-              placeholder="Enter destination"
-              value={formData.destination}
-              onChangeText={(value) => handleChange('destination', value)}
-              style={styles.input}
-            />
-          </View>
+          <FormInput label="Number of People" value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
+          <FormInput label="Destination" value={formData.destination} onChangeText={(val) => handleChange('destination', val)} />
         </View>
 
         <TouchableOpacity
@@ -195,6 +123,20 @@ const BookingDetailsForm = () => {
     </SafeAreaView>
   );
 };
+
+const FormInput = ({ label, value, onChangeText, keyboardType = 'default' }) => (
+  <View style={styles.inputGroup}>
+    <Text style={styles.label}>{label}</Text>
+    <TextInput
+      placeholder={`Enter your ${label.toLowerCase()}`}
+      value={value}
+      onChangeText={onChangeText}
+      style={styles.input}
+      keyboardType={keyboardType}
+      autoCapitalize="none"
+    />
+  </View>
+);
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -239,10 +181,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 2,
   },
   sectionTitle: {
