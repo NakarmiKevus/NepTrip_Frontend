@@ -38,7 +38,14 @@ const BookingStatusLoader = () => {
     try {
       setLoading(true);
       const response = await bookingApi.getLatestBooking();
+      
       if (response.success) {
+        if (!response.booking) {
+          // No booking found, navigate back to dashboard
+          navigation.navigate('Dashboard');
+          return;
+        }
+        
         const newStatus = response.booking.status;
         const alertKey = `alert_shown_for_${response.booking._id}`;
 
@@ -130,7 +137,7 @@ const BookingStatusLoader = () => {
 
           <Text style={styles.statusDescription}>
             {status === 'pending'
-              ? 'Your booking request has been sent. Please wait for guide’s response.'
+              ? 'Your booking request has been sent. Please wait for guide response.'
               : status === 'accepted'
               ? 'Your booking is accepted. Happy trekking!'
               : 'Guide declined your request. Try booking again later.'}

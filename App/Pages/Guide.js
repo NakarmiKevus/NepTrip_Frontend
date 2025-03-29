@@ -30,9 +30,9 @@ const GuideScreen = () => {
   const checkBookingAndRedirect = async () => {
     try {
       const response = await bookingApi.getLatestBooking();
-      if (response.success) {
-        const booking = response.booking;
-        if (booking.status === 'pending' || booking.status === 'accepted') {
+      if (response.success && response.booking) {
+        // Only check if booking exists
+        if (response.booking.status === 'pending' || response.booking.status === 'accepted') {
           navigation.replace('BookingStatusLoader');
           return;
         }
