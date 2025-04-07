@@ -19,6 +19,7 @@ const Tours = () => {
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchAcceptedTours();
@@ -33,25 +34,52 @@ const Tours = () => {
   const fetchAcceptedTours = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('Fetching accepted tours...');
+      
       const response = await bookingApi.getAllBookingRequests();
+      console.log('API response:', response);
       
       if (response.success) {
         // Filter to only show accepted bookings
         const acceptedTours = response.requests.filter(booking => booking.status === 'accepted') || [];
+        console.log(`Found ${acceptedTours.length} accepted tours`);
         setTours(acceptedTours);
       } else {
+        console.error('API returned error:', response.message);
+        setError(response.message || 'Failed to fetch tours');
         Alert.alert('Error', response.message || 'Failed to fetch tours');
       }
     } catch (error) {
-      console.error('Error fetching tours:', error);
-      Alert.alert('Error', 'Failed to load tours');
+      console.error('Exception during fetch:', error);
+      setError('Network error. Please check your connection and try again.');
+      Alert.alert('Error', 'Failed to load tours. Please check your connection.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const handleCompleteTour = async (bookingId) => {
+  const completeTourProcess = async (bookingId) => {
+    try {
+      console.log('Completing tour:', bookingId);
+      const response = await bookingApi.completeTour(bookingId);
+      
+      if (response.success) {
+        Alert.alert('Success', 'Tour marked as completed!');
+        // Refresh the list
+        fetchAcceptedTours();
+      } else {
+        console.error('API error when completing tour:', response.message);
+        Alert.alert('Error', response.message || 'Failed to complete tour');
+      }
+    } catch (error) {
+      console.error('Exception when completing tour:', error);
+      Alert.alert('Error', 'An error occurred while completing the tour');
+    }
+  };
+
+  const handleCompleteTour = async (booking) => {
     Alert.alert(
       'Complete Tour',
       'Are you sure you want to mark this tour as completed?',
@@ -59,34 +87,49 @@ const Tours = () => {
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Yes, Complete', 
-          onPress: async () => {
-            try {
-              const response = await bookingApi.completeTour(bookingId);
-              
-              if (response.success) {
-                Alert.alert('Success', 'Tour marked as completed!');
-                // Refresh the list
-                fetchAcceptedTours();
-              } else {
-                Alert.alert('Error', response.message || 'Failed to complete tour');
-              }
-            } catch (error) {
-              console.log('Error completing tour:', error);
-              Alert.alert('Error', 'An error occurred while completing the tour');
-            }
-          }
+          onPress: () => completeTourProcess(booking._id)
         }
       ]
     );
   };
 
   const handleViewDetails = (booking) => {
+    console.log('Navigating to tour details with booking:', booking._id);
     navigation.navigate('TourDetails', { booking });
   };
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchAcceptedTours();
+  };
+
+  const formatPaymentMethod = (method) => {
+    if (!method) return 'Not specified';
+    switch (method) {
+      case 'cash': return 'Cash on Arrival';
+      case 'online': return 'Online Payment';
+      default: return 'Not specified';
+    }
+  };
+
+  const formatPaymentStatus = (status) => {
+    if (!status) return 'Not specified';
+    switch (status) {
+      case 'paid': return 'Paid';
+      case 'partially_paid': return 'Partially Paid';
+      case 'unpaid': return 'Unpaid';
+      default: return 'Not specified';
+    }
+  };
+
+  const getPaymentStatusColor = (status) => {
+    if (!status) return '#666';
+    switch (status) {
+      case 'paid': return '#4CAF50';
+      case 'partially_paid': return '#FFA500';
+      case 'unpaid': return '#F44336';
+      default: return '#666';
+    }
   };
 
   const renderTourItem = ({ item }) => (
@@ -123,12 +166,37 @@ const Tours = () => {
           <Feather name="phone" size={16} color="#666" />
           <Text style={styles.detailText}>{item.phone || 'No phone'}</Text>
         </View>
+        
+        {/* Payment Information - Handle case where payment info might not exist */}
+        <View style={styles.paymentInfoSection}>
+          <View style={styles.detailRow}>
+            <Feather 
+              name={item.paymentMethod === 'cash' ? 'dollar-sign' : 'credit-card'} 
+              size={16} 
+              color="#666" 
+            />
+            <Text style={styles.detailText}>
+              Payment: {formatPaymentMethod(item.paymentMethod)}
+            </Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Feather name="info" size={16} color={getPaymentStatusColor(item.paymentStatus)} />
+            <Text style={[
+              styles.detailText, 
+              { color: getPaymentStatusColor(item.paymentStatus) }
+            ]}>
+              Status: {formatPaymentStatus(item.paymentStatus)}
+              {item.paymentAmount > 0 && ` (₹${item.paymentAmount})`}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.completeButton}
-          onPress={() => handleCompleteTour(item._id)}
+          onPress={() => handleCompleteTour(item)}
         >
           <Feather name="check-circle" size={16} color="#fff" />
           <Text style={styles.actionButtonText}>Complete Trek</Text>
@@ -145,35 +213,52 @@ const Tours = () => {
     </View>
   );
 
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.loadingText}>Loading tours...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Feather name="alert-triangle" size={50} color="#F44336" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton}
+          onPress={() => fetchAcceptedTours()}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Active Tours</Text>
       </View>
       
-      {loading && !refreshing ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2196F3" />
-          <Text style={styles.loadingText}>Loading tours...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={tours}
-          keyExtractor={(item, index) => item._id || `tour-${index}`}
-          renderItem={renderTourItem}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Feather name="map" size={50} color="#ccc" />
-              <Text style={styles.emptyText}>No active tours found</Text>
-              <Text style={styles.emptySubText}>Accept booking requests to see them here</Text>
-            </View>
-          }
-        />
-      )}
+      <FlatList
+        data={tours}
+        keyExtractor={(item, index) => item._id || `tour-${index}`}
+        renderItem={renderTourItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Feather name="map" size={50} color="#ccc" />
+            <Text style={styles.emptyText}>No active tours found</Text>
+            <Text style={styles.emptySubText}>Accept booking requests to see them here</Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -244,6 +329,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
+  paymentInfoSection: {
+    marginTop: 5,
+    paddingTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -291,6 +382,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 50,
@@ -307,6 +399,23 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
   },
+  errorText: {
+    marginTop: 10,
+    marginBottom: 15,
+    fontSize: 16,
+    color: '#F44336',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });
 
 export default Tours;

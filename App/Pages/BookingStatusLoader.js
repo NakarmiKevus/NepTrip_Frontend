@@ -102,6 +102,50 @@ const BookingStatusLoader = () => {
     return '#FFA500';
   };
 
+  // Helper functions for payment information
+  const formatPaymentMethod = (method) => {
+    switch (method) {
+      case 'cash': return 'Cash on Arrival';
+      case 'online': return 'Online Payment';
+      default: return 'Not specified';
+    }
+  };
+
+  const getPaymentMethodIcon = (method) => {
+    switch (method) {
+      case 'cash': return 'dollar-sign';
+      case 'online': return 'credit-card';
+      default: return 'help-circle';
+    }
+  };
+
+  const formatPaymentStatus = (status) => {
+    switch (status) {
+      case 'paid': return 'Paid';
+      case 'partially_paid': return 'Partially Paid';
+      case 'unpaid': return 'Unpaid';
+      default: return 'Unknown';
+    }
+  };
+
+  const getPaymentStatusIcon = (status) => {
+    switch (status) {
+      case 'paid': return 'check-circle';
+      case 'partially_paid': return 'clock';
+      case 'unpaid': return 'alert-circle';
+      default: return 'help-circle';
+    }
+  };
+
+  const getPaymentStatusColor = (status) => {
+    switch (status) {
+      case 'paid': return '#4CAF50';
+      case 'partially_paid': return '#FFA500';
+      case 'unpaid': return '#F44336';
+      default: return '#666';
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -168,6 +212,47 @@ const BookingStatusLoader = () => {
           </View>
         )}
 
+        {/* Payment Details Card - Without Instructions Section */}
+        {booking && booking.paymentMethod && (
+          <View style={styles.paymentDetailsCard}>
+            <Text style={styles.detailsTitle}>Payment Details</Text>
+            
+            <Detail 
+              label="Payment Method" 
+              value={formatPaymentMethod(booking.paymentMethod)} 
+              icon={getPaymentMethodIcon(booking.paymentMethod)} 
+            />
+            
+            <Detail 
+              label="Payment Status" 
+              value={formatPaymentStatus(booking.paymentStatus)} 
+              icon={getPaymentStatusIcon(booking.paymentStatus)}
+              color={getPaymentStatusColor(booking.paymentStatus)}
+            />
+            
+            {booking.paymentAmount > 0 && (
+              <Detail 
+                label="Amount Paid" 
+                value={`₹${booking.paymentAmount}`} 
+                icon="credit-card" 
+              />
+            )}
+            
+            {booking.status === 'accepted' && booking.paymentStatus !== 'paid' && booking.paymentMethod === 'online' && (
+              <TouchableOpacity
+                style={styles.makePaymentButton}
+                onPress={() => Alert.alert(
+                  'Payment Reminder', 
+                  'Please make the payment using the provided details to confirm your booking.'
+                )}
+              >
+                <Feather name="credit-card" size={16} color="#fff" />
+                <Text style={styles.makePaymentText}>Make Payment</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {error && (
           <View style={styles.errorContainer}>
             <Feather name="alert-triangle" size={24} color="#F44336" />
@@ -188,10 +273,13 @@ const BookingStatusLoader = () => {
   );
 };
 
-const Detail = ({ label, value, icon }) => (
+// Updated Detail component to support colors
+const Detail = ({ label, value, icon, color }) => (
   <View style={styles.detailItem}>
-    <Feather name={icon} size={18} color="#666" />
-    <Text style={styles.detailText}>{label}: {value}</Text>
+    <Feather name={icon} size={18} color={color || "#666"} />
+    <Text style={[styles.detailText, color && { color }]}>
+      {label}: {value}
+    </Text>
   </View>
 );
 
@@ -270,6 +358,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    marginBottom: 20,
   },
   detailsTitle: {
     fontSize: 16,
@@ -322,6 +411,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  // Payment Details Styles
+  paymentDetailsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  makePaymentButton: {
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  makePaymentText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  }
 });
 
 export default BookingStatusLoader;

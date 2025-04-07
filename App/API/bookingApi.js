@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const bookingClient = axios.create({
-  baseURL: 'http://192.168.0.105:8000/api/booking',
+  baseURL: 'http://192.168.0.114:8000/api/booking',
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ const getBookingStatus = async (bookingId) => {
   }
 };
 
-// ✅ Get the latest booking for the user - UPDATED TO HANDLE 404
+// ✅ Get the latest booking for the user
 const getLatestBooking = async () => {
   try {
     const response = await bookingClient.get('/latest-booking');
@@ -165,6 +165,34 @@ const getBookedDates = async () => {
   }
 };
 
+// ✅ Update payment status
+const updatePaymentStatus = async (bookingId, paymentData) => {
+  try {
+    const response = await bookingClient.put(`/payment/${bookingId}`, paymentData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    if (error.response) {
+      return error.response.data;
+    }
+    return { success: false, message: 'Network error occurred' };
+  }
+};
+
+// ✅ Update payment method for legacy bookings
+const updatePaymentMethod = async (bookingId, paymentData) => {
+  try {
+    const response = await bookingClient.put(`/payment-method/${bookingId}`, paymentData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating payment method:', error);
+    if (error.response) {
+      return error.response.data;
+    }
+    return { success: false, message: 'Network error occurred' };
+  }
+};
+
 export default {
   requestBooking,
   getBookingRequests,
@@ -176,4 +204,6 @@ export default {
   getLatestBooking,
   searchBookings,
   getBookedDates,
+  updatePaymentStatus,
+  updatePaymentMethod
 };

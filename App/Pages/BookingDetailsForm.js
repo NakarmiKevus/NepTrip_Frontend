@@ -26,15 +26,25 @@ const BookingDetailsForm = () => {
     phone: '',
     peopleCount: '',
     destination: '',
+    paymentMethod: '', // Added payment method field
+    advancePayment: false, // Whether user will pay advance
+    advanceAmount: '0', // Amount for advance payment
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+
+  // Payment method options - simplified to just online and cash
+  const paymentMethods = [
+    { id: 'cash', name: 'Cash on Arrival', icon: 'dollar-sign' },
+    { id: 'online', name: 'Online Payment', icon: 'credit-card' },
+  ];
 
   useEffect(() => {
     const checkBooking = async () => {
       try {
         const response = await bookingApi.getLatestBooking();
-        if (response.success && response.booking.status !== 'completed') {
+        if (response.success && response.booking && response.booking.status !== 'completed') {
           navigation.replace('BookingStatusLoader');
         }
       } catch (error) {
@@ -48,20 +58,48 @@ const BookingDetailsForm = () => {
     setFormData({ ...formData, [key]: value });
   };
 
+  const selectPaymentMethod = (methodId) => {
+    setSelectedPaymentMethod(methodId);
+    setFormData({ 
+      ...formData, 
+      paymentMethod: methodId,
+      // Reset advance payment if switching to cash
+      advancePayment: methodId === 'cash' ? false : formData.advancePayment,
+      advanceAmount: methodId === 'cash' ? '0' : formData.advanceAmount
+    });
+  };
+  
+  const toggleAdvancePayment = () => {
+    setFormData({ 
+      ...formData, 
+      advancePayment: !formData.advancePayment,
+      advanceAmount: !formData.advancePayment ? '500' : '0'
+    });
+  };
+
   const handleSubmit = async () => {
-    const { fullname, email, address, phone, peopleCount, destination } = formData;
+    const { fullname, email, address, phone, peopleCount, destination, paymentMethod } = formData;
 
     if (!fullname || !email || !address || !phone || !peopleCount || !destination) {
-      Alert.alert('Error', 'Please fill all fields.');
+      Alert.alert('Error', 'Please fill all required fields.');
+      return;
+    }
+
+    if (!paymentMethod) {
+      Alert.alert('Error', 'Please select a payment method.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const response = await bookingApi.requestBooking({
+      const bookingPayload = {
         ...formData,
         date: selectedDate,
-      });
+        paymentStatus: formData.advancePayment ? 'partially_paid' : 'unpaid',
+        paymentAmount: formData.advancePayment ? parseInt(formData.advanceAmount, 10) || 0 : 0
+      };
+      
+      const response = await bookingApi.requestBooking(bookingPayload);
 
       setIsSubmitting(false);
 
@@ -106,6 +144,65 @@ const BookingDetailsForm = () => {
 
           <FormInput label="Number of People" value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
           <FormInput label="Destination" value={formData.destination} onChangeText={(val) => handleChange('destination', val)} />
+
+          {/* Payment Method Section */}
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <Text style={styles.paymentNote}>Please select your preferred payment method:</Text>
+          
+          <View style={styles.paymentMethodsContainer}>
+            {paymentMethods.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={[
+                  styles.paymentMethod,
+                  selectedPaymentMethod === method.id && styles.selectedPaymentMethod
+                ]}
+                onPress={() => selectPaymentMethod(method.id)}
+              >
+                <Feather 
+                  name={method.icon} 
+                  size={24} 
+                  color={selectedPaymentMethod === method.id ? '#fff' : '#333'} 
+                />
+                <Text 
+                  style={[
+                    styles.paymentMethodText,
+                    selectedPaymentMethod === method.id && styles.selectedPaymentMethodText
+                  ]}
+                >
+                  {method.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Advance Payment Option - only show for online payments */}
+          {selectedPaymentMethod === 'online' && (
+            <TouchableOpacity 
+              style={styles.advancePaymentContainer}
+              onPress={toggleAdvancePayment}
+            >
+              <View style={styles.checkboxContainer}>
+                <View style={[styles.checkbox, formData.advancePayment && styles.checkboxSelected]}>
+                  {formData.advancePayment && <Feather name="check" size={16} color="#fff" />}
+                </View>
+                <Text style={styles.advancePaymentText}>Pay advance amount</Text>
+              </View>
+              
+              {formData.advancePayment && (
+                <View style={styles.advanceAmountContainer}>
+                  <Text style={styles.advanceAmountLabel}>Advance Amount ($):</Text>
+                  <TextInput
+                    style={styles.advanceAmountInput}
+                    value={formData.advanceAmount}
+                    onChangeText={(val) => handleChange('advanceAmount', val)}
+                    keyboardType="numeric"
+                    placeholder="Enter amount"
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity
@@ -198,6 +295,85 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  // Payment Method Styles
+  paymentNote: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  paymentMethodsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  paymentMethod: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  selectedPaymentMethod: {
+    backgroundColor: '#000',
+    borderColor: '#000',
+  },
+  paymentMethodText: {
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#333',
+  },
+  selectedPaymentMethodText: {
+    color: '#fff',
+  },
+  // Advance Payment Styles
+  advancePaymentContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#666',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#000',
+    borderColor: '#000',
+  },
+  advancePaymentText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  advanceAmountContainer: {
+    marginTop: 15,
+  },
+  advanceAmountLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 6,
+  },
+  advanceAmountInput: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
