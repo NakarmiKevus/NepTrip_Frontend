@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -31,13 +33,12 @@ const GuideScreen = () => {
     try {
       const response = await bookingApi.getLatestBooking();
       if (response.success && response.booking) {
-        // Only check if booking exists
         if (response.booking.status === 'pending' || response.booking.status === 'accepted') {
           navigation.replace('BookingStatusLoader');
           return;
         }
       }
-      fetchGuide(); // If no redirect, fetch guide normally
+      fetchGuide();
     } catch (error) {
       console.log('Error checking booking:', error);
       fetchGuide();
@@ -81,51 +82,55 @@ const GuideScreen = () => {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {guide ? (
-        <>
-          <View style={styles.profileSection}>
-            <Image
-              source={guide.avatar ? { uri: guide.avatar } : require('../../assets/images/Profile.png')}
-              style={styles.avatar}
-            />
-            <Text style={styles.name}>{guide.fullname}</Text>
-            <View style={styles.ratingContainer}>
-              {[...Array(5)].map((_, index) => (
-                <Feather key={index} name="star" size={20} color="black" />
-              ))}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {guide ? (
+          <>
+            <View style={styles.profileSection}>
+              <Image
+                source={guide.avatar ? { uri: guide.avatar } : require('../../assets/images/Profile.png')}
+                style={styles.avatar}
+              />
+              <Text style={styles.name}>{guide.fullname}</Text>
+              <View style={styles.ratingContainer}>
+                {[...Array(5)].map((_, index) => (
+                  <Feather key={index} name="star" size={20} color="black" />
+                ))}
+              </View>
+              <View style={styles.trekCountContainer}>
+                <Feather name="map" size={16} color="white" />
+                <Text style={styles.trekCountText}>
+                  {guide.trekCount || 0} treks completed
+                </Text>
+              </View>
             </View>
-            <View style={styles.trekCountContainer}>
-              <Feather name="map" size={16} color="white" />
-              <Text style={styles.trekCountText}>
-                {guide.trekCount || 0} treks completed
-              </Text>
+
+            <View style={styles.divider} />
+
+            <View style={styles.personalInfoContainer}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              {renderInfoField('user', 'Full Name', guide.fullname)}
+              {renderInfoField('mail', 'Email', guide.email)}
+              {renderInfoField('phone', 'Phone Number', guide.phoneNumber)}
+              {renderInfoField('map-pin', 'Address', guide.address)}
+              {renderInfoField('globe', 'Language', guide.language)}
+              {renderInfoField('briefcase', 'Experience', guide.experience)}
+              {renderInfoField('map', 'Number of Treks', guide.trekCount || '0')}
+
+              <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
+                <Text style={styles.bookButtonText}>Book</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.personalInfoContainer}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            {renderInfoField('user', 'Full Name', guide.fullname)}
-            {renderInfoField('mail', 'Email', guide.email)}
-            {renderInfoField('phone', 'Phone Number', guide.phoneNumber)}
-            {renderInfoField('map-pin', 'Address', guide.address)}
-            {renderInfoField('globe', 'Language', guide.language)}
-            {renderInfoField('briefcase', 'Experience', guide.experience)}
-            {renderInfoField('map', 'Number of Treks', guide.trekCount || '0')}
-            <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
-              <Text style={styles.bookButtonText}>Book</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <Text style={styles.noGuideText}>No guide found.</Text>
-      )}
-    </ScrollView>
+          </>
+        ) : (
+          <Text style={styles.noGuideText}>No guide found.</Text>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -142,9 +147,12 @@ const renderInfoField = (iconName, label, value) => (
 export default GuideScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    alignItems: 'center',
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    paddingBottom: 30,
   },
   loaderContainer: {
     flex: 1,
@@ -159,9 +167,9 @@ const styles = StyleSheet.create({
   profileSection: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingTop: 80,
     paddingBottom: 10,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: 'white',
   },
   avatar: {
     width: 160,
@@ -235,9 +243,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'black',
     paddingVertical: 15,
     alignItems: 'center',
-    marginHorizontal: 20,
     borderRadius: 8,
-    marginBottom: 20,
+    marginBottom: 30,
   },
   bookButtonText: {
     color: 'white',

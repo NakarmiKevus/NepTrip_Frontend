@@ -1,15 +1,19 @@
-// Import your existing client if you have API setup there
 import client from './client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Helper function to include Authorization token dynamically
-const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-});
+// Helper function to get auth headers
+const getAuthHeaders = async () => {
+  const token = await AsyncStorage.getItem('token');
+  return {
+    headers: { Authorization: `Bearer ${token}` }
+  };
+};
 
 // ✅ Fetch all users (Admin only)
 const getAllUsers = async () => {
   try {
-    const response = await client.get('/all-users', authHeader());
+    const authHeaders = await getAuthHeaders();
+    const response = await client.get('/all-users', authHeaders);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -19,7 +23,8 @@ const getAllUsers = async () => {
 // ✅ Fetch logged-in user's profile
 const getUserProfile = async () => {
   try {
-    const response = await client.get('/profile', authHeader());
+    const authHeaders = await getAuthHeaders();
+    const response = await client.get('/profile', authHeaders);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -29,7 +34,8 @@ const getUserProfile = async () => {
 // ✅ Delete user (Admin only)
 const deleteUser = async (userId) => {
   try {
-    const response = await client.delete(`/delete-user/${userId}`, authHeader());
+    const authHeaders = await getAuthHeaders();
+    const response = await client.delete(`/delete-user/${userId}`, authHeaders);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -59,7 +65,8 @@ const getGuideProfile = async (guideId) => {
 // ✅ Update user profile (Name, Email, Address, Phone)
 const updateUserProfile = async (userData) => {
   try {
-    const response = await client.put('/update-profile', userData, authHeader());
+    const authHeaders = await getAuthHeaders();
+    const response = await client.put('/update-profile', userData, authHeaders);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -69,13 +76,24 @@ const updateUserProfile = async (userData) => {
 // ✅ Upload or update profile picture
 const uploadProfilePicture = async (formData) => {
   try {
+    const token = await AsyncStorage.getItem('token');
     const response = await client.post('/upload-profile', formData, {
-      ...authHeader(),
       headers: {
-        ...authHeader().headers,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// ✅ Update guide details (Admin only - for experience, language, trek count)
+const updateGuideDetails = async (guideId, guideData) => {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const response = await client.put(`/update-guide/${guideId}`, guideData, authHeaders);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -89,5 +107,6 @@ export default {
   getGuides,
   getGuideProfile,
   updateUserProfile,
-  uploadProfilePicture
+  uploadProfilePicture,
+  updateGuideDetails
 };

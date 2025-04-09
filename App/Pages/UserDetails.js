@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   deleteButton: {
-    backgroundColor: '#444444',
+    backgroundColor: 'red',
     paddingVertical: 15,
     borderRadius: 15,
     alignItems: 'center',
