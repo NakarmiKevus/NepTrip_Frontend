@@ -100,6 +100,33 @@ const updateGuideDetails = async (guideId, guideData) => {
   }
 };
 
+// ✅ Create a new guide (Admin only)
+const createGuide = async (guideData) => {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const response = await client.post('/create-guide', guideData, authHeaders);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// ✅ Upload guide's profile picture (Admin only)
+const uploadGuideProfilePicture = async (guideId, formData) => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const response = await client.post(`/upload-guide-profile/${guideId}`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export default {
   getAllUsers,
   getUserProfile,
@@ -108,5 +135,7 @@ export default {
   getGuideProfile,
   updateUserProfile,
   uploadProfilePicture,
-  updateGuideDetails
+  updateGuideDetails,
+  createGuide,
+  uploadGuideProfilePicture
 };

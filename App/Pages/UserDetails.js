@@ -11,10 +11,13 @@ import {
   ActivityIndicator, 
   StyleSheet,
   Alert,
-  Image
+  Image,
+  RefreshControl,
+  TextInput
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../API/client';
+import { Feather } from '@expo/vector-icons';
 
 const getInitials = (name) => {
   if (!name) return '??';
@@ -43,7 +46,10 @@ const getRandomColor = (name) => {
 
 const UserDetails = () => {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -53,9 +59,29 @@ const UserDetails = () => {
     fetchUsers();
   }, []);
 
+  // Filter users when search query changes
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(users);
+    } else {
+      const lowercasedQuery = searchQuery.toLowerCase();
+      const filtered = users.filter(user => 
+        user.fullname.toLowerCase().includes(lowercasedQuery) || 
+        user.email.toLowerCase().includes(lowercasedQuery)
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, users]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUsers();
+    setRefreshing(false);
+  };
+
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (!token) throw new Error('No authentication token found');
 
@@ -65,6 +91,7 @@ const UserDetails = () => {
 
       if (response.data.success) {
         setUsers(response.data.users);
+        setFilteredUsers(response.data.users); // Initialize filtered users with all users
       } else {
         throw new Error(response.data.message || 'Failed to fetch users');
       }
@@ -73,7 +100,7 @@ const UserDetails = () => {
       console.error('❌ Fetch Error:', err);
       setError(err.message || 'Failed to fetch users');
     } finally {
-      setLoading(false);
+      if (!refreshing) setLoading(false);
     }
   };
 
@@ -105,7 +132,9 @@ const UserDetails = () => {
               
               if (response.data.success) {
                 setModalVisible(false);
-                setUsers(prevUsers => prevUsers.filter(user => user._id !== selectedUser._id));
+                const updatedUsers = users.filter(user => user._id !== selectedUser._id);
+                setUsers(updatedUsers);
+                setFilteredUsers(updatedUsers);
                 Alert.alert("Success", "User deleted successfully");
               } else {
                 throw new Error(response.data.message || 'Failed to delete user');
@@ -132,7 +161,11 @@ const UserDetails = () => {
         onPress={() => handleUserPress(item)}
       >
         <View style={[styles.avatar, { backgroundColor }]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          {item.avatar ? (
+            <Image source={{ uri: item.avatar }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>{initials}</Text>
+          )}
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{item.fullname}</Text>
@@ -178,6 +211,23 @@ const UserDetails = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <Text style={styles.header}>Users</Text>
       
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Feather name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search users..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Feather name="x" size={20} color="#999" style={styles.clearIcon} />
+          </TouchableOpacity>
+        )}
+      </View>
+      
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="black" />
@@ -186,13 +236,29 @@ const UserDetails = () => {
       ) : error ? (
         <Text style={styles.errorText}>{error}</Text>
       ) : (
-        <FlatList
-          data={users}
-          keyExtractor={item => item._id}
-          renderItem={renderUserItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>No users found</Text>}
-        />
+        <View style={styles.listContainer}>
+          <Text style={styles.sectionTitle}>All Users</Text>
+          
+          <FlatList
+            data={filteredUsers}
+            keyExtractor={item => item._id}
+            renderItem={renderUserItem}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              searchQuery.trim() !== '' 
+                ? <Text style={styles.emptyText}>No users match your search</Text>
+                : <Text style={styles.emptyText}>No users found</Text>
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#3498db']}
+                tintColor={'#3498db'}
+              />
+            }
+          />
+        </View>
       )}
 
       <Modal
@@ -263,6 +329,45 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#333',
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 30,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 15,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  clearIcon: {
+    marginLeft: 10,
+  },
+  searchInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+  },
+
+  listContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
+  },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,6 +383,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 20,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     color: 'white',
@@ -348,7 +458,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 80,
-    marginVertical:20
+    marginVertical: 20
   },
   modalAvatarPlaceholder: {
     width: 120,
@@ -357,13 +467,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#cccccc',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical:20
+    marginVertical: 20
   },
   modalAvatarText: {
     color: 'white',
     fontSize: 35,
     fontWeight: 'bold',
-    letterSpacing:4
+    letterSpacing: 4
   },
   detailsContainer: {
     paddingHorizontal: 25,
@@ -379,7 +489,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     color: '#555',
-    marginRight:10
+    marginRight: 10
   },
   detailValue: {
     flex: 2,
