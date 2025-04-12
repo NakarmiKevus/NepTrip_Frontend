@@ -10,11 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import bookingApi from '../API/bookingApi';
 
 const ConfirmBooking = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { guideId } = route.params || {}; // Get the selected guide ID if passed
+  
   const [loading, setLoading] = useState(true);
   const [bookedDates, setBookedDates] = useState([]);
 
@@ -30,8 +33,13 @@ const ConfirmBooking = () => {
   const [selectedDate, setSelectedDate] = useState('');
 
   useEffect(() => {
-    fetchBookedDates();
-  }, []);
+    if (guideId) {
+      fetchBookedDatesForGuide();
+    } else {
+      Alert.alert('Error', 'No guide selected. Please go back and select a guide.');
+      navigation.goBack();
+    }
+  }, [guideId]);
 
   const formatDate = (year, month, day) => {
     return `${year}-${(month).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -44,12 +52,15 @@ const ConfirmBooking = () => {
     return dateToCheck < today;
   };
 
-  const fetchBookedDates = async () => {
+  const fetchBookedDatesForGuide = async () => {
     try {
       setLoading(true);
-      const response = await bookingApi.getBookedDates();
+      // Pass the specific guideId to get only dates that guide is booked
+      const response = await bookingApi.getBookedDates(guideId);
       if (response.success) {
         setBookedDates(response.dates || []);
+      } else {
+        console.error('Failed to fetch booked dates:', response.message);
       }
     } catch (error) {
       console.error('Error fetching booked dates:', error);
@@ -85,7 +96,7 @@ const ConfirmBooking = () => {
 
   const handleDaySelect = (day) => {
     if (day.isBooked) {
-      Alert.alert('Unavailable', 'This date is already booked.');
+      Alert.alert('Unavailable', 'This guide is already booked for this date.');
       return;
     }
     if (day.isPastDate) {
@@ -119,7 +130,16 @@ const ConfirmBooking = () => {
       Alert.alert('Error', 'Please select a date.');
       return;
     }
-    navigation.navigate('BookingDetailsForm', { selectedDate });
+    
+    if (!guideId) {
+      Alert.alert('Error', 'No guide selected. Please go back and select a guide.');
+      return;
+    }
+    
+    navigation.navigate('BookingDetailsForm', { 
+      selectedDate,
+      guideId
+    });
   };
 
   return (

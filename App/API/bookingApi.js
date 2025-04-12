@@ -1,14 +1,16 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Create an Axios client for booking API
 const bookingClient = axios.create({
-  baseURL: 'http://192.168.0.114:8000/api/booking',
+  baseURL: 'http://192.168.0.108:8000/api/booking',
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   },
 });
 
+// Add token to requests if available
 bookingClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('token');
@@ -20,7 +22,7 @@ bookingClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Make a new booking request
+// Request a new booking
 const requestBooking = async (bookingData) => {
   try {
     const response = await bookingClient.post('/request', bookingData);
@@ -34,7 +36,7 @@ const requestBooking = async (bookingData) => {
   }
 };
 
-// ✅ Get only pending booking requests for guide
+// Get booking requests
 const getBookingRequests = async () => {
   try {
     const response = await bookingClient.get('/requests');
@@ -48,7 +50,7 @@ const getBookingRequests = async () => {
   }
 };
 
-// ✅ Get all booking requests (guide)
+// Get all booking requests
 const getAllBookingRequests = async () => {
   try {
     const response = await bookingClient.get('/all-requests');
@@ -62,7 +64,7 @@ const getAllBookingRequests = async () => {
   }
 };
 
-// ✅ Guide responds to a booking
+// Respond to a booking request
 const respondToBooking = async (bookingId, status) => {
   try {
     const response = await bookingClient.put(`/respond/${bookingId}`, { status });
@@ -76,7 +78,7 @@ const respondToBooking = async (bookingId, status) => {
   }
 };
 
-// ✅ Guide completes a tour
+// Mark a tour as complete
 const completeTour = async (bookingId) => {
   try {
     const response = await bookingClient.put(`/complete/${bookingId}`);
@@ -90,7 +92,7 @@ const completeTour = async (bookingId) => {
   }
 };
 
-// ✅ Get all bookings for current user
+// Get bookings for a user
 const getUserBookings = async () => {
   try {
     const response = await bookingClient.get('/user-bookings');
@@ -104,7 +106,7 @@ const getUserBookings = async () => {
   }
 };
 
-// ✅ Get status of a specific booking
+// Get the status of a booking
 const getBookingStatus = async (bookingId) => {
   try {
     const response = await bookingClient.get(`/status/${bookingId}`);
@@ -118,7 +120,7 @@ const getBookingStatus = async (bookingId) => {
   }
 };
 
-// ✅ Get the latest booking for the user
+// Get the latest booking
 const getLatestBooking = async () => {
   try {
     const response = await bookingClient.get('/latest-booking');
@@ -126,7 +128,6 @@ const getLatestBooking = async () => {
   } catch (error) {
     console.error('Error in getLatestBooking:', error);
     if (error.response && error.response.status === 404) {
-      // If 404, return a success response with no booking
       return { success: true, booking: null, message: 'No bookings found' };
     }
     if (error.response) {
@@ -136,7 +137,7 @@ const getLatestBooking = async () => {
   }
 };
 
-// ✅ Search bookings (guide)
+// Search bookings with filters
 const searchBookings = async (filters) => {
   try {
     const queryParams = new URLSearchParams(filters).toString();
@@ -151,10 +152,14 @@ const searchBookings = async (filters) => {
   }
 };
 
-// ✅ Get all already booked dates (for disabling in calendar)
-const getBookedDates = async () => {
+// Get booked dates for a guide
+const getBookedDates = async (guideId) => {
   try {
-    const response = await bookingClient.get('/booked-dates');
+    let url = '/booked-dates';
+    if (guideId) {
+      url += `?guideId=${guideId}`;
+    }
+    const response = await bookingClient.get(url);
     return response.data;
   } catch (error) {
     console.error('Error in getBookedDates:', error);
@@ -165,7 +170,24 @@ const getBookedDates = async () => {
   }
 };
 
-// ✅ Update payment status
+// Get available guides for a date
+const getAvailableGuides = async (date) => {
+  try {
+    if (!date) {
+      return { success: false, message: 'Date is required', guides: [] };
+    }
+    const response = await bookingClient.get(`/available-guides?date=${date}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error in getAvailableGuides:', error);
+    if (error.response) {
+      return error.response.data;
+    }
+    return { success: false, message: 'Failed to fetch available guides', guides: [] };
+  }
+};
+
+// Update payment status for a booking
 const updatePaymentStatus = async (bookingId, paymentData) => {
   try {
     const response = await bookingClient.put(`/payment/${bookingId}`, paymentData);
@@ -179,7 +201,7 @@ const updatePaymentStatus = async (bookingId, paymentData) => {
   }
 };
 
-// ✅ Update payment method for legacy bookings
+// Update payment method for a booking
 const updatePaymentMethod = async (bookingId, paymentData) => {
   try {
     const response = await bookingClient.put(`/payment-method/${bookingId}`, paymentData);
@@ -193,6 +215,7 @@ const updatePaymentMethod = async (bookingId, paymentData) => {
   }
 };
 
+// Export all API functions
 export default {
   requestBooking,
   getBookingRequests,
@@ -204,6 +227,7 @@ export default {
   getLatestBooking,
   searchBookings,
   getBookedDates,
+  getAvailableGuides,
   updatePaymentStatus,
-  updatePaymentMethod
+  updatePaymentMethod,
 };

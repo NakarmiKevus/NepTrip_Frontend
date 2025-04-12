@@ -9,15 +9,17 @@ import {
   TouchableOpacity,
   Alert,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import bookingApi from '../API/bookingApi';
+import userApi from '../API/userApi';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const BookingDetailsForm = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedDate } = route.params;
+  const { selectedDate, guideId } = route.params;
 
   const [formData, setFormData] = useState({
     fullname: '',
@@ -29,10 +31,13 @@ const BookingDetailsForm = () => {
     paymentMethod: '', // Added payment method field
     advancePayment: false, // Whether user will pay advance
     advanceAmount: '0', // Amount for advance payment
+    guide: guideId, // Add the guide ID to the booking
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [selectedGuide, setSelectedGuide] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Payment method options - simplified to just online and cash
   const paymentMethods = [
@@ -46,13 +51,41 @@ const BookingDetailsForm = () => {
         const response = await bookingApi.getLatestBooking();
         if (response.success && response.booking && response.booking.status !== 'completed') {
           navigation.replace('BookingStatusLoader');
+        } else {
+          // Fetch guide details if we have a guideId
+          if (guideId) {
+            fetchGuideDetails();
+          }
         }
       } catch (error) {
         console.log('No ongoing booking:', error);
+        // Fetch guide details if we have a guideId
+        if (guideId) {
+          fetchGuideDetails();
+        } else {
+          setLoading(false);
+        }
       }
     };
     checkBooking();
   }, []);
+
+  const fetchGuideDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await userApi.getGuideProfile(guideId);
+      if (response.success) {
+        setSelectedGuide(response.guide);
+      } else {
+        Alert.alert('Error', 'Could not fetch guide details.');
+      }
+    } catch (error) {
+      console.error('Error fetching guide details:', error);
+      Alert.alert('Error', 'Failed to load guide information.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (key, value) => {
     setFormData({ ...formData, [key]: value });
@@ -96,7 +129,8 @@ const BookingDetailsForm = () => {
         ...formData,
         date: selectedDate,
         paymentStatus: formData.advancePayment ? 'partially_paid' : 'unpaid',
-        paymentAmount: formData.advancePayment ? parseInt(formData.advanceAmount, 10) || 0 : 0
+        paymentAmount: formData.advancePayment ? parseInt(formData.advanceAmount, 10) || 0 : 0,
+        guide: guideId // Ensure the guide ID is included in the request
       };
       
       const response = await bookingApi.requestBooking(bookingPayload);
@@ -127,95 +161,120 @@ const BookingDetailsForm = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.dateInfoContainer}>
-          <Feather name="calendar" size={20} color="#666" />
-          <Text style={styles.dateInfoText}>Booking for: {selectedDate}</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          <Text style={styles.sectionTitle}>Personal Details</Text>
-
-          <FormInput label="Full Name" value={formData.fullname} onChangeText={(val) => handleChange('fullname', val)} />
-          <FormInput label="Email Address" value={formData.email} onChangeText={(val) => handleChange('email', val)} keyboardType="email-address" />
-          <FormInput label="Phone Number" value={formData.phone} onChangeText={(val) => handleChange('phone', val)} keyboardType="phone-pad" />
-          <FormInput label="Address" value={formData.address} onChangeText={(val) => handleChange('address', val)} />
-
-          <Text style={styles.sectionTitle}>Trip Details</Text>
-
-          <FormInput label="Number of People" value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
-          <FormInput label="Destination" value={formData.destination} onChangeText={(val) => handleChange('destination', val)} />
-
-          {/* Payment Method Section */}
-          <Text style={styles.sectionTitle}>Payment Details</Text>
-          <Text style={styles.paymentNote}>Please select your preferred payment method:</Text>
-          
-          <View style={styles.paymentMethodsContainer}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[
-                  styles.paymentMethod,
-                  selectedPaymentMethod === method.id && styles.selectedPaymentMethod
-                ]}
-                onPress={() => selectPaymentMethod(method.id)}
-              >
-                <Feather 
-                  name={method.icon} 
-                  size={24} 
-                  color={selectedPaymentMethod === method.id ? '#fff' : '#333'} 
-                />
-                <Text 
-                  style={[
-                    styles.paymentMethodText,
-                    selectedPaymentMethod === method.id && styles.selectedPaymentMethodText
-                  ]}
-                >
-                  {method.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>Loading guide information...</Text>
           </View>
-
-          {/* Advance Payment Option - only show for online payments */}
-          {selectedPaymentMethod === 'online' && (
-            <TouchableOpacity 
-              style={styles.advancePaymentContainer}
-              onPress={toggleAdvancePayment}
-            >
-              <View style={styles.checkboxContainer}>
-                <View style={[styles.checkbox, formData.advancePayment && styles.checkboxSelected]}>
-                  {formData.advancePayment && <Feather name="check" size={16} color="#fff" />}
-                </View>
-                <Text style={styles.advancePaymentText}>Pay advance amount</Text>
-              </View>
-              
-              {formData.advancePayment && (
-                <View style={styles.advanceAmountContainer}>
-                  <Text style={styles.advanceAmountLabel}>Advance Amount ($):</Text>
-                  <TextInput
-                    style={styles.advanceAmountInput}
-                    value={formData.advanceAmount}
-                    onChangeText={(val) => handleChange('advanceAmount', val)}
-                    keyboardType="numeric"
-                    placeholder="Enter amount"
+        ) : (
+          <>
+            {/* Guide Info Card */}
+            {selectedGuide && (
+              <View style={styles.guideInfoCard}>
+                <View style={styles.guideInfoHeader}>
+                  <Image 
+                    source={selectedGuide.avatar ? { uri: selectedGuide.avatar } : require('../../assets/images/Profile.png')} 
+                    style={styles.guideAvatar} 
                   />
+                  <View style={styles.guideInfoTextContainer}>
+                    <Text style={styles.guideName}>{selectedGuide.fullname}</Text>
+                    <Text style={styles.guideDetail}>Experience: {selectedGuide.experience || 'N/A'}</Text>
+                  </View>
                 </View>
+              </View>
+            )}
+
+            <View style={styles.dateInfoContainer}>
+              <Feather name="calendar" size={20} color="#666" />
+              <Text style={styles.dateInfoText}>Booking for: {selectedDate}</Text>
+            </View>
+
+            <View style={styles.formContainer}>
+              <Text style={styles.sectionTitle}>Personal Details</Text>
+
+              <FormInput label="Full Name" value={formData.fullname} onChangeText={(val) => handleChange('fullname', val)} />
+              <FormInput label="Email Address" value={formData.email} onChangeText={(val) => handleChange('email', val)} keyboardType="email-address" />
+              <FormInput label="Phone Number" value={formData.phone} onChangeText={(val) => handleChange('phone', val)} keyboardType="phone-pad" />
+              <FormInput label="Address" value={formData.address} onChangeText={(val) => handleChange('address', val)} />
+
+              <Text style={styles.sectionTitle}>Trip Details</Text>
+
+              <FormInput label="Number of People" value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
+              <FormInput label="Destination" value={formData.destination} onChangeText={(val) => handleChange('destination', val)} />
+
+              {/* Payment Method Section */}
+              <Text style={styles.sectionTitle}>Payment Details</Text>
+              <Text style={styles.paymentNote}>Please select your preferred payment method:</Text>
+              
+              <View style={styles.paymentMethodsContainer}>
+                {paymentMethods.map((method) => (
+                  <TouchableOpacity
+                    key={method.id}
+                    style={[
+                      styles.paymentMethod,
+                      selectedPaymentMethod === method.id && styles.selectedPaymentMethod
+                    ]}
+                    onPress={() => selectPaymentMethod(method.id)}
+                  >
+                    <Feather 
+                      name={method.icon} 
+                      size={24} 
+                      color={selectedPaymentMethod === method.id ? '#fff' : '#333'} 
+                    />
+                    <Text 
+                      style={[
+                        styles.paymentMethodText,
+                        selectedPaymentMethod === method.id && styles.selectedPaymentMethodText
+                      ]}
+                    >
+                      {method.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Advance Payment Option - only show for online payments */}
+              {selectedPaymentMethod === 'online' && (
+                <TouchableOpacity 
+                  style={styles.advancePaymentContainer}
+                  onPress={toggleAdvancePayment}
+                >
+                  <View style={styles.checkboxContainer}>
+                    <View style={[styles.checkbox, formData.advancePayment && styles.checkboxSelected]}>
+                      {formData.advancePayment && <Feather name="check" size={16} color="#fff" />}
+                    </View>
+                    <Text style={styles.advancePaymentText}>Pay advance amount</Text>
+                  </View>
+                  
+                  {formData.advancePayment && (
+                    <View style={styles.advanceAmountContainer}>
+                      <Text style={styles.advanceAmountLabel}>Advance Amount (₹):</Text>
+                      <TextInput
+                        style={styles.advanceAmountInput}
+                        value={formData.advanceAmount}
+                        onChangeText={(val) => handleChange('advanceAmount', val)}
+                        keyboardType="numeric"
+                        placeholder="Enter amount"
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Booking Request</Text>
               )}
             </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Submit Booking Request</Text>
-          )}
-        </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -260,6 +319,50 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
+  guideInfoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guideInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  guideAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 12,
+  },
+  guideInfoTextContainer: {
+    flex: 1,
+  },
+  guideName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  guideDetail: {
+    fontSize: 14,
+    color: '#666',
   },
   dateInfoContainer: {
     flexDirection: 'row',

@@ -120,23 +120,97 @@ const AdminDashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 16, backgroundColor: '#f5f5f5' },
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: 'white' },
-  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-  difficultyContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
-  difficultyOption: { padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#999' },
-  selectedDifficulty: { backgroundColor: '#007bff' },
-  difficultyText: { fontSize: 16, color: '#000' },
-  selectedDifficultyText: { color: '#fff' },
-  gearInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  gearInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, backgroundColor: 'white' },
-  addGearButton: { backgroundColor: '#007bff', padding: 10, borderRadius: 8, marginLeft: 8 },
-  addGearText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  gearListContainer: { marginTop: 10, backgroundColor: '#fff', padding: 10, borderRadius: 8 },
-  gearItem: { fontSize: 16, marginVertical: 2 },
-  button: { backgroundColor: '#28a745', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 20 },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  container: {
+    flexGrow: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: 'white',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  difficultyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  difficultyOption: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#999',
+  },
+  selectedDifficulty: {
+    backgroundColor: '#007bff',
+  },
+  difficultyText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  selectedDifficultyText: {
+    color: '#fff',
+  },
+  gearInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  gearInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: 'white',
+  },
+  addGearButton: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  addGearText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  gearListContainer: {
+    marginTop: 10,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+  },
+  gearItem: {
+    fontSize: 16,
+    marginVertical: 2,
+  },
+  button: {
+    backgroundColor: '#28a745',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default AdminDashboard;

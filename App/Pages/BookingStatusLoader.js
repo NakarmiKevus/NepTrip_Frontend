@@ -27,7 +27,7 @@ const BookingStatusLoader = () => {
   useEffect(() => {
     fetchBookingStatus();
     const statusInterval = setInterval(fetchBookingStatus, 5000);
-    const timeInterval = setInterval(() => setTimeElapsed(prev => prev + 1), 1000);
+    const timeInterval = setInterval(() => setTimeElapsed((prev) => prev + 1), 1000);
     return () => {
       clearInterval(statusInterval);
       clearInterval(timeInterval);
@@ -38,14 +38,13 @@ const BookingStatusLoader = () => {
     try {
       setLoading(true);
       const response = await bookingApi.getLatestBooking();
-      
+
       if (response.success) {
         if (!response.booking) {
-          // No booking found, navigate back to dashboard
           navigation.navigate('Dashboard');
           return;
         }
-        
+
         const newStatus = response.booking.status;
         const alertKey = `alert_shown_for_${response.booking._id}`;
 
@@ -55,7 +54,17 @@ const BookingStatusLoader = () => {
 
         const alreadyShown = await AsyncStorage.getItem(alertKey);
         if (newStatus !== 'pending' && alreadyShown !== 'true') {
-          Alert.alert('Booking Update', `Your booking has been ${newStatus}!`);
+          let message = '';
+          if (newStatus === 'accepted') {
+            message = 'Your booking has been accepted!';
+          } else if (newStatus === 'completed') {
+            message = 'Your trek has been completed! Thank you for choosing our service.';
+          } else if (newStatus === 'declined') {
+            message = 'Your booking has been declined.';
+          } else {
+            message = `Your booking has been ${newStatus}!`;
+          }
+          Alert.alert('Booking Update', message);
           await AsyncStorage.setItem(alertKey, 'true');
         }
       } else {
@@ -99,51 +108,19 @@ const BookingStatusLoader = () => {
   const getStatusColor = () => {
     if (status === 'accepted') return '#4CAF50';
     if (status === 'declined') return '#F44336';
+    if (status === 'completed') return '#2196F3';
     return '#FFA500';
   };
 
-  // Helper functions for payment information
-  const formatPaymentMethod = (method) => {
-    switch (method) {
-      case 'cash': return 'Cash on Arrival';
-      case 'online': return 'Online Payment';
-      default: return 'Not specified';
-    }
+  const getStatusIcon = () => {
+    if (status === 'pending') return null;
+    if (status === 'accepted') return 'check-circle';
+    if (status === 'completed') return 'award';
+    return 'x-circle';
   };
 
-  const getPaymentMethodIcon = (method) => {
-    switch (method) {
-      case 'cash': return 'dollar-sign';
-      case 'online': return 'credit-card';
-      default: return 'help-circle';
-    }
-  };
-
-  const formatPaymentStatus = (status) => {
-    switch (status) {
-      case 'paid': return 'Paid';
-      case 'partially_paid': return 'Partially Paid';
-      case 'unpaid': return 'Unpaid';
-      default: return 'Unknown';
-    }
-  };
-
-  const getPaymentStatusIcon = (status) => {
-    switch (status) {
-      case 'paid': return 'check-circle';
-      case 'partially_paid': return 'clock';
-      case 'unpaid': return 'alert-circle';
-      default: return 'help-circle';
-    }
-  };
-
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case 'paid': return '#4CAF50';
-      case 'partially_paid': return '#FFA500';
-      case 'unpaid': return '#F44336';
-      default: return '#666';
-    }
+  const handleBookGuidePress = () => {
+    navigation.navigate('Guide'); // Navigate to the Guide screen
   };
 
   return (
@@ -167,16 +144,18 @@ const BookingStatusLoader = () => {
             {status === 'pending' ? (
               <ActivityIndicator size="large" color="#FFA500" />
             ) : (
-              <Feather
-                name={status === 'accepted' ? 'check-circle' : 'x-circle'}
-                size={60}
-                color={getStatusColor()}
-              />
+              <Feather name={getStatusIcon()} size={60} color={getStatusColor()} />
             )}
           </View>
 
           <Text style={[styles.statusTitle, { color: getStatusColor() }]}>
-            {status === 'pending' ? 'Awaiting Guide Response' : status === 'accepted' ? 'Booking Accepted!' : 'Booking Declined'}
+            {status === 'pending'
+              ? 'Awaiting Guide Response'
+              : status === 'accepted'
+              ? 'Booking Accepted!'
+              : status === 'completed'
+              ? 'Trek Completed'
+              : 'Booking Declined'}
           </Text>
 
           <Text style={styles.statusDescription}>
@@ -184,6 +163,8 @@ const BookingStatusLoader = () => {
               ? 'Your booking request has been sent. Please wait for guide response.'
               : status === 'accepted'
               ? 'Your booking is accepted. Happy trekking!'
+              : status === 'completed'
+              ? 'Your trek has been completed. Thank you for choosing our service!'
               : 'Guide declined your request. Try booking again later.'}
           </Text>
 
@@ -195,7 +176,7 @@ const BookingStatusLoader = () => {
           )}
         </View>
 
-        {booking && (
+        {booking && status !== 'pending' && (
           <View style={styles.bookingDetails}>
             <Text style={styles.detailsTitle}>Booking Details</Text>
             <Detail label="Destination" value={booking.destination} icon="map-pin" />
@@ -206,28 +187,39 @@ const BookingStatusLoader = () => {
               <Detail
                 label="Response received"
                 value={new Date(booking.updatedAt).toLocaleString()}
-                icon={status === 'accepted' ? 'check' : 'x'}
+                icon={status === 'accepted' ? 'check' : status === 'completed' ? 'award' : 'x'}
+              />
+            )}
+            {booking.completedAt && status === 'completed' && (
+              <Detail
+                label="Completed on"
+                value={new Date(booking.completedAt).toLocaleString()}
+                icon="check-square"
+                color="#2196F3"
               />
             )}
           </View>
         )}
 
-        {/* Payment Details Card - Without Instructions Section */}
-        {booking && booking.paymentMethod && (
-          <View style={styles.paymentDetailsCard}>
+        {/* Payment Details Card */}
+        {booking && booking.paymentMethod && status !== 'pending' && (
+          <View style={styles.bookingDetails}>
             <Text style={styles.detailsTitle}>Payment Details</Text>
-            
             <Detail 
               label="Payment Method" 
-              value={formatPaymentMethod(booking.paymentMethod)} 
-              icon={getPaymentMethodIcon(booking.paymentMethod)} 
+              value={booking.paymentMethod === 'cash' ? 'Cash on Arrival' : 'Online Payment'} 
+              icon={booking.paymentMethod === 'cash' ? 'dollar-sign' : 'credit-card'} 
             />
             
             <Detail 
               label="Payment Status" 
-              value={formatPaymentStatus(booking.paymentStatus)} 
-              icon={getPaymentStatusIcon(booking.paymentStatus)}
-              color={getPaymentStatusColor(booking.paymentStatus)}
+              value={booking.paymentStatus ? 
+                (booking.paymentStatus === 'paid' ? 'Paid' : 
+                 booking.paymentStatus === 'partially_paid' ? 'Partially Paid' : 
+                 'Unpaid') : 'Not specified'}
+              icon={booking.paymentStatus === 'paid' ? 'check-circle' : 'alert-circle'}
+              color={booking.paymentStatus === 'paid' ? '#4CAF50' : 
+                    booking.paymentStatus === 'partially_paid' ? '#FFA500' : '#F44336'}
             />
             
             {booking.paymentAmount > 0 && (
@@ -236,19 +228,6 @@ const BookingStatusLoader = () => {
                 value={`₹${booking.paymentAmount}`} 
                 icon="credit-card" 
               />
-            )}
-            
-            {booking.status === 'accepted' && booking.paymentStatus !== 'paid' && booking.paymentMethod === 'online' && (
-              <TouchableOpacity
-                style={styles.makePaymentButton}
-                onPress={() => Alert.alert(
-                  'Payment Reminder', 
-                  'Please make the payment using the provided details to confirm your booking.'
-                )}
-              >
-                <Feather name="credit-card" size={16} color="#fff" />
-                <Text style={styles.makePaymentText}>Make Payment</Text>
-              </TouchableOpacity>
             )}
           </View>
         )}
@@ -263,9 +242,15 @@ const BookingStatusLoader = () => {
           </View>
         )}
 
-        {status !== 'pending' && (
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Dashboard')}>
-            <Text style={styles.actionButtonText}>Back to Dashboard</Text>
+        {(status === 'declined' || status === 'completed') && (
+          <TouchableOpacity style={styles.actionButton} onPress={handleBookGuidePress}>
+            <Text style={styles.actionButtonText}>Book a Guide</Text>
+          </TouchableOpacity>
+        )}
+
+        {status !== 'pending' && status !== 'completed' && status !== 'declined' && (
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('GuideMain')}>
+            <Text style={styles.actionButtonText}>Book a Guide</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -273,7 +258,7 @@ const BookingStatusLoader = () => {
   );
 };
 
-// Updated Detail component to support colors
+// Detail component for displaying booking information
 const Detail = ({ label, value, icon, color }) => (
   <View style={styles.detailItem}>
     <Feather name={icon} size={18} color={color || "#666"} />
@@ -411,33 +396,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // Payment Details Styles
-  paymentDetailsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 20,
-  },
-  makePaymentButton: {
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  makePaymentText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    marginLeft: 8,
-  }
 });
 
 export default BookingStatusLoader;
