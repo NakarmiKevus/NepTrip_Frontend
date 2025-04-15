@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   closeBtn: {
-    backgroundColor: '#333',
+    backgroundColor: 'black',
     padding: 10,
     borderRadius: 8,
     flex: 1,
