@@ -9,7 +9,7 @@ import { debounce } from 'lodash';
 import { fetchLocations, fetchWeatherForecast } from '../API/weather';
 import { weatherImages } from '../..';
 import { Feather } from '@expo/vector-icons';
-import { getData, storeData } from '../Utils/asyncStorage';
+import { getData, storeData } from '../utils/asyncStorage';
 import * as Progress from 'react-native-progress';
 
 const Weather = () => {
@@ -18,49 +18,48 @@ const Weather = () => {
   const [weather, setWeather] = useState({});
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+  const [noLocationFound, setNoLocationFound] = useState(false); 
 
   const handleLocation = (loc) => {
-    console.log('Selected location:', loc);
     toggleSearch(false);
     Keyboard.dismiss();
     setLocations([]);
     setLoading(true);
-    setError(null); // Clear any previous errors
-    
+    setError(null);
+    setNoLocationFound(false); 
+
     fetchWeatherForecast({
       cityName: loc.name,
-      days: '7'  
-    }).then(data => {
-      setWeather(data);
-      setLoading(false);
-      console.log('got forecast:', data);
-      storeData('city', loc.name);
-    }).catch(error => {
-      console.error('Error fetching weather forecast:', error);
-      setError('Failed to load weather data');
-      setLoading(false);
-    });
+      days: '7',
+    })
+      .then((data) => {
+        setWeather(data);
+        setLoading(false);
+        storeData('city', loc.name);
+      })
+      .catch((error) => {
+        console.error('Error fetching weather forecast:', error);
+        setError('Failed to load weather data');
+        setLoading(false);
+      });
   };
 
-  const handleDismiss = () => {
-    if (showSearch) {
-      toggleSearch(false);
-      Keyboard.dismiss();
-    }
-  };
-
-  const handleSearch = value => {
+  const handleSearch = (value) => {
     if (value.length > 2) {
       setLoading(true);
-      setError(null); // Clear any previous errors
-      
+      setError(null);
+      setNoLocationFound(false); 
+
       fetchLocations({ cityName: value })
-        .then(data => {
-          setLocations(data || []);
+        .then((data) => {
+          if (data && data.length > 0) {
+            setLocations(data);
+          } else {
+            setNoLocationFound(true); 
+          }
           setLoading(false);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Error fetching locations:', error);
           setError('Failed to find locations');
           setLoading(false);
@@ -75,21 +74,21 @@ const Weather = () => {
 
   const fetchMyWeatherData = async () => {
     setLoading(true);
-    setError(null); // Clear any previous errors
-    
+    setError(null);
+
     try {
       let myCity = await getData('city');
-      let cityName = myCity || 'Kathmandu'; 
-      
+      let cityName = myCity || 'Kathmandu';
+
       const data = await fetchWeatherForecast({
         cityName,
-        days: '7'
+        days: '7',
       });
-      
+
       setWeather(data);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching weather data:", error);
+      console.error('Error fetching weather data:', error);
       setError('Failed to load weather data');
       setLoading(false);
     }
@@ -100,40 +99,28 @@ const Weather = () => {
   const { current, location, forecast } = weather || {};
 
   const getWeatherImage = (condition) => {
-    if (!condition) return require('../../assets/images/partlycloudy.png'); 
-    
+    if (!condition) return require('../../assets/images/partlycloudy.png');
+
     try {
       const image = weatherImages[condition.text];
-      return image ? image : require('../../assets/images/partlycloudy.png'); 
+      return image ? image : require('../../assets/images/partlycloudy.png');
     } catch (e) {
       console.error('Error getting weather image:', e);
-      return require('../../assets/images/partlycloudy.png'); 
-    }
-  };
-
-  // Format sunrise time (assuming it's in the format from API)
-  const formatTime = (timeString) => {
-    if (!timeString) return '6:00 AM'; 
-    
-    try {
-      const date = new Date(timeString);
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    } catch (e) {
-      return '6:00 AM'; 
+      return require('../../assets/images/partlycloudy.png');
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "andriod" ? "padding" : "height"}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'android' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <TouchableWithoutFeedback onPress={handleDismiss}>
+      <TouchableWithoutFeedback onPress={() => toggleSearch(false)}>
         <View style={styles.container}>
           <StatusBar style="light" />
           {loading ? (
             <View style={styles.loadingContainer}>
-              <Progress.CircleSnail thickness={10} size={140} color="#0bb3b2"/>
+              <Progress.CircleSnail thickness={10} size={140} color="#0bb3b2" />
             </View>
           ) : (
             <SafeAreaView style={styles.safeArea}>
@@ -143,7 +130,7 @@ const Weather = () => {
                   <Feather name="search" size={20} color="white" style={styles.button} />
                   <TextInput
                     onChangeText={handleTextDebounce}
-                    placeholder='Search city'
+                    placeholder="Search city"
                     placeholderTextColor={'grey'}
                     style={styles.input}
                     onFocus={() => toggleSearch(true)}
@@ -169,9 +156,19 @@ const Weather = () => {
                     })}
                   </View>
                 )}
+
+                {noLocationFound && showSearch && (
+                  <View style={styles.noLocationContainer}>
+                    <Text style={styles.noLocationText}>No location found</Text>
+                  </View>
+                )}
               </View>
 
-              {error ? (
+              {noLocationFound ? (
+                <View style={styles.noLocationContainer}>
+                  <Text style={styles.noLocationText}>No location found</Text>
+                </View>
+              ) : error ? (
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                   <TouchableOpacity style={styles.retryButton} onPress={fetchMyWeatherData}>
@@ -179,7 +176,7 @@ const Weather = () => {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <ScrollView 
+                <ScrollView
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={showSearch ? styles.contentContainerSearch : styles.contentContainer}
                 >
@@ -188,17 +185,17 @@ const Weather = () => {
                     <Text style={styles.locationTextBig}>
                       {location?.name || 'Loading...'},
                       <Text style={styles.locationSubText}>
-                        {" " + (location?.country || '')}
+                        {' ' + (location?.country || '')}
                       </Text>
                     </Text>
-                    
+
                     {/* Weather display */}
                     <View style={styles.centeredWeatherContainer}>
-                      <Image 
-                        source={getWeatherImage(current?.condition)} 
-                        style={styles.weatherImage1} 
+                      <Image
+                        source={getWeatherImage(current?.condition)}
+                        style={styles.weatherImage1}
                       />
-                      
+
                       <View style={styles.centeredWeatherDetails}>
                         <Text style={styles.temperatureText}>
                           {current?.temp_c ?? 23}&#176;
@@ -206,30 +203,30 @@ const Weather = () => {
                         <Text style={styles.weatherConditionText}>
                           {current?.condition?.text ?? 'Partly Cloudy'}
                         </Text>
-                        
+
                         <View style={styles.weatherDetails}>
                           <View style={styles.detailItem}>
-                            <Image 
-                              source={require('../../assets/images/wind.png')} 
-                              style={styles.iconSmall} 
+                            <Image
+                              source={require('../../assets/images/wind.png')}
+                              style={styles.iconSmall}
                             />
                             <Text style={styles.detailText}>
                               {current?.wind_kph ?? 9} km/h
                             </Text>
                           </View>
                           <View style={styles.detailItem}>
-                            <Image 
-                              source={require('../../assets/images/drop.png')} 
-                              style={styles.iconSmall} 
+                            <Image
+                              source={require('../../assets/images/drop.png')}
+                              style={styles.iconSmall}
                             />
                             <Text style={styles.detailText}>
                               {current?.humidity ?? 43}%
                             </Text>
                           </View>
                           <View style={styles.detailItem}>
-                            <Image 
-                              source={require('../../assets/images/sun.png')} 
-                              style={styles.iconSmall} 
+                            <Image
+                              source={require('../../assets/images/sun.png')}
+                              style={styles.iconSmall}
                             />
                             <Text style={styles.detailText}>
                               {weather?.forecast?.forecastday?.[0]?.astro?.sunrise || '6:00 AM'}
@@ -246,7 +243,7 @@ const Weather = () => {
                       <CalendarDaysIcon size={22} color="white" />
                       <Text style={styles.forecastText}>Daily Forecast</Text>
                     </View>
-                    
+
                     <ScrollView
                       horizontal
                       contentContainerStyle={{ paddingHorizontal: 10, flexDirection: 'row' }}
@@ -261,9 +258,9 @@ const Weather = () => {
 
                             return (
                               <View key={item.date || index} style={styles.forecastItem}>
-                                <Image 
-                                  source={getWeatherImage(item?.day?.condition)} 
-                                  style={styles.weatherImage} 
+                                <Image
+                                  source={getWeatherImage(item?.day?.condition)}
+                                  style={styles.weatherImage}
                                 />
                                 <Text style={styles.forecastDay} numberOfLines={1} ellipsizeMode="tail">
                                   {dayName}
@@ -345,7 +342,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    maxHeight: 250, // Limit the height so it doesn't push all content down
+    maxHeight: 250, 
   },
   locationItem: {
     flexDirection: 'row',
@@ -360,6 +357,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: 'black',
     fontSize: 16,
+  },
+  noLocationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noLocationText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   weatherInfo: {
     marginTop: 30, // Increased to make room for search box
