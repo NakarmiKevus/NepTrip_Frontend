@@ -1,215 +1,241 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  ScrollView, 
-  StyleSheet 
-} from 'react-native';
-import TrekkingApi from '../API/trekkingApi'; // Ensure correct API import
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  RefreshControl,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import TrekkingApi from "../API/trekkingApi";
+import DashboardTrekkingCard from "../Components/DashboardTrekkingCard"; // Assuming you have a component for displaying trekking cards
 
-const AdminDashboard = () => {
-  const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
-  const [altitude, setAltitude] = useState('');
-  const [review, setReview] = useState('');
-  const [distance, setDistance] = useState('');
-  const [timeToComplete, setTimeToComplete] = useState('');
-  const [difficulty, setDifficulty] = useState('');
-  const [ecoCulturalInfo, setEcoCulturalInfo] = useState('');
-  const [gearChecklist, setGearChecklist] = useState([]);
-  const [newGearItem, setNewGearItem] = useState('');
+const AdminDashboard = ({ navigation }) => {
+  const [trekkingPlaces, setTrekkingPlaces] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleAddGearItem = () => {
-    if (newGearItem.trim() !== '') {
-      setGearChecklist([...gearChecklist, newGearItem.trim()]);
-      setNewGearItem('');
+  useEffect(() => {
+    fetchTrekkingPlaces();
+    const unsubscribe = navigation.addListener("focus", fetchTrekkingPlaces);
+    return unsubscribe;
+  }, [navigation]);
+
+  const fetchTrekkingPlaces = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await TrekkingApi.getAllTrekking();
+      if (response?.success && Array.isArray(response.trekkingSpots)) {
+        setTrekkingPlaces(response.trekkingSpots);
+      } else {
+        setTrekkingPlaces([]);
+      }
+    } catch (error) {
+      console.error("Error fetching trekking places:", error);
+      setError("Failed to load trekking places");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleAddTrekking = async () => {
-    if (!name || !location || !altitude || !review || !distance || !timeToComplete || !difficulty || !ecoCulturalInfo || gearChecklist.length === 0) {
-      Alert.alert('Error', 'Please fill all fields and add at least one gear item.');
-      return;
-    }
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchTrekkingPlaces();
+  };
 
-    try {
-      const trekkingData = {
-        name,
-        location,
-        altitude: parseFloat(altitude),
-        review,
-        distance_from_user: parseFloat(distance),
-        time_to_complete: timeToComplete,
-        difficulty_level: difficulty,
-        eco_cultural_info: ecoCulturalInfo,
-        gear_checklist: gearChecklist,
-      };
+  const handleTrekkingPress = (trekId) => {
+    navigation.navigate("TrekkingDetails", { trekId });
+  };
 
-      const response = await TrekkingApi.addTrekking(trekkingData);
-      if (response.success) {
-        Alert.alert('Success', 'Trekking place added successfully');
-        setName('');
-        setLocation('');
-        setAltitude('');
-        setReview('');
-        setDistance('');
-        setTimeToComplete('');
-        setDifficulty('');
-        setEcoCulturalInfo('');
-        setGearChecklist([]);
-      } else {
-        Alert.alert('Error', response.message || 'Failed to add trekking place');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message || 'Something went wrong');
-    }
+  const handleAddTrekkingPress = () => {
+    navigation.navigate("TrekkingForm");
+  };
+
+  const handleEditTrekking = (trekId) => {
+    navigation.navigate("EditTrekking", { trekId });
+  };
+
+  const handleDeleteTrekking = (trekId) => {
+    Alert.alert("Confirm Delete", "Are you sure you want to delete this trekking place?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await TrekkingApi.deleteTrekking(trekId);
+            Alert.alert("Success", "Trekking place deleted successfully");
+            fetchTrekkingPlaces();
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete trekking place");
+          }
+        },
+      },
+    ]);
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Admin - Add Trekking Place</Text>
-
-      <TextInput style={styles.input} placeholder="Trekking Name" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="Location" value={location} onChangeText={setLocation} />
-      <TextInput style={styles.input} placeholder="Altitude (meters)" keyboardType="numeric" value={altitude} onChangeText={setAltitude} />
-      <TextInput style={styles.input} placeholder="Review" value={review} onChangeText={setReview} />
-      <TextInput style={styles.input} placeholder="Distance from User (km)" keyboardType="numeric" value={distance} onChangeText={setDistance} />
-      <TextInput style={styles.input} placeholder="Time to Complete (e.g. '3 days')" value={timeToComplete} onChangeText={setTimeToComplete} />
-      
-      <Text style={styles.label}>Difficulty Level:</Text>
-      <View style={styles.difficultyContainer}>
-        {['Easy', 'Moderate', 'Hard'].map((level) => (
-          <TouchableOpacity 
-            key={level} 
-            style={[styles.difficultyOption, difficulty === level && styles.selectedDifficulty]}
-            onPress={() => setDifficulty(level)}
-          >
-            <Text style={[styles.difficultyText, difficulty === level && styles.selectedDifficultyText]}>
-              {level}
-            </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Trekking Dashboard</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddTrekkingPress}>
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>Add Trek</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-
-      <TextInput style={styles.input} placeholder="Eco-Cultural Info" value={ecoCulturalInfo} onChangeText={setEcoCulturalInfo} />
-
-      <Text style={styles.label}>Gear Checklist:</Text>
-      <View style={styles.gearInputContainer}>
-        <TextInput style={styles.gearInput} placeholder="Add gear item" value={newGearItem} onChangeText={setNewGearItem} />
-        <TouchableOpacity style={styles.addGearButton} onPress={handleAddGearItem}>
-          <Text style={styles.addGearText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      {gearChecklist.length > 0 && (
-        <View style={styles.gearListContainer}>
-          {gearChecklist.map((item, index) => (
-            <Text key={index} style={styles.gearItem}>• {item}</Text>
-          ))}
         </View>
-      )}
 
-      <TouchableOpacity style={styles.button} onPress={handleAddTrekking}>
-        <Text style={styles.buttonText}>Add Trekking</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Loading */}
+        {loading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4A90E2" />
+            <Text style={styles.loadingText}>Loading trekking places...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchTrekkingPlaces}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : trekkingPlaces.length > 0 ? (
+          <FlatList
+            data={trekkingPlaces}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <DashboardTrekkingCard
+                item={item}
+                onPress={handleTrekkingPress}
+                onEdit={handleEditTrekking}
+                onDelete={handleDeleteTrekking}
+              />
+            )}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#4A90E2"]} />}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No trekking places available</Text>
+            <Text style={styles.emptySubText}>Add your first trekking place!</Text>
+            <TouchableOpacity style={styles.emptyAddButton} onPress={handleAddTrekkingPress}>
+              <Text style={styles.emptyAddButtonText}>Add Trekking Place</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
-  },
+  safeArea: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1 },
   header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#2C3E50",
+  },
+  addButton: {
+    backgroundColor: "#4A90E2",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
   },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  addButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+    marginLeft: 4,
   },
-  difficultyContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  difficultyOption: {
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#999',
-  },
-  selectedDifficulty: {
-    backgroundColor: '#007bff',
-  },
-  difficultyText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  selectedDifficultyText: {
-    color: '#fff',
-  },
-  gearInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  gearInput: {
+  loadingContainer: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: 'white',
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
-  addGearButton: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 8,
-    marginLeft: 8,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#7F8C8D",
   },
-  addGearText: {
-    color: 'white',
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#F44336",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#4A90E2",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  listContainer: {
+    padding: 16,
+    paddingBottom: 90,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    color: "#2C3E50",
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: "bold",
   },
-  gearListContainer: {
-    marginTop: 10,
-    backgroundColor: '#fff',
-    padding: 10,
+  emptySubText: {
+    fontSize: 16,
+    color: "#7F8C8D",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  emptyAddButton: {
+    backgroundColor: "#27AE60",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: 8,
   },
-  gearItem: {
+  emptyAddButtonText: {
+    color: "white",
+    fontWeight: "bold",
     fontSize: 16,
-    marginVertical: 2,
-  },
-  button: {
-    backgroundColor: '#28a745',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 

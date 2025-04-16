@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 
-// Import Components & Pages
+// Pages & Components
 import AppForm from './App/Components/AppForm';
 import ImageUploader from './App/Components/ImageUploader';
 import LoginForm from './App/Pages/LoginForm';
@@ -21,15 +21,17 @@ import BookingDetailsForm from './App/Pages/BookingDetailsForm';
 import BookingStatusLoader from './App/Pages/BookingStatusLoader';
 import UserProfile from './App/Pages/UserProfile';
 import AdminDashboard from './App/Pages/AdminDashboard';
+import TrekkingForm from './App/Pages/TrekkingForm';
+import EditTrekking from './App/Pages/EditTrekking';
 import GuideDatabase from './App/Pages/GuideDatabase';
 import UserDetails from './App/Pages/UserDetails';
 import GuideDashboard from './App/Pages/GuideDashboard';
-import Tours from './App/Pages/Tours'; // Make sure Tours is imported
+import Tours from './App/Pages/Tours';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Profile Stack Navigator
+// Profile Stack
 const ProfileStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="UserProfile" component={UserProfile} />
@@ -37,7 +39,7 @@ const ProfileStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// Guide Stack Navigator (Updated to Include BookingStatusLoader)
+// Guide Stack
 const GuideStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="GuideMain" component={GuideScreen} />
@@ -47,7 +49,17 @@ const GuideStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// User Bottom Tab Navigator
+// ✅ Admin Stack
+const AdminDashboardStackNavigator = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="AdminDashboardMain" component={AdminDashboard} />
+    <Stack.Screen name="TrekkingForm" component={TrekkingForm} />
+    <Stack.Screen name="EditTrekking" component={EditTrekking} />
+    <Stack.Screen name="TrekkingDetails" component={TrekkingDetails} />
+  </Stack.Navigator>
+);
+
+// User Bottom Tabs
 const UserBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -74,7 +86,7 @@ const UserBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Guide Bottom Tab Navigator
+// Guide Bottom Tabs
 const GuideBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -99,7 +111,7 @@ const GuideBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Admin Bottom Tab Navigator
+// ✅ Admin Bottom Tabs
 const AdminBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -108,7 +120,6 @@ const AdminBottomTabNavigator = () => (
           Dashboard: 'grid',
           Users: 'users',
           Guides: 'briefcase',
-          Settings: 'settings',
           Profile: 'user',
         };
         return <Feather name={icons[route.name]} size={size} color={color} />;
@@ -118,35 +129,28 @@ const AdminBottomTabNavigator = () => (
       headerShown: false,
     })}
   >
-    <Tab.Screen name="Dashboard" component={AdminDashboard} />
+    <Tab.Screen name="Dashboard" component={AdminDashboardStackNavigator} />
     <Tab.Screen name="Users" component={UserDetails} />
     <Tab.Screen name="Guides" component={GuideDatabase} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );
 
-// Main Stack Navigator
+// Main Navigation Stack
 const StackNavigator = ({ initialRoute }) => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AppForm" component={AppForm} />
     <Stack.Screen name="LoginForm" component={LoginForm} />
     <Stack.Screen name="SignupForm" component={SignupForm} />
     <Stack.Screen name="ImageUpload" component={ImageUploader} />
-
-    {/* Role-based dashboards */}
     <Stack.Screen name="Dashboard" component={UserBottomTabNavigator} />
     <Stack.Screen name="GuideDashboard" component={GuideBottomTabNavigator} />
     <Stack.Screen name="AdminDashboard" component={AdminBottomTabNavigator} />
-
-    {/* Tours screen for guides */}
-    <Stack.Screen name="Tours" component={Tours} />
-
-    {/* Trekking Details Page */}
     <Stack.Screen name="TrekkingDetails" component={TrekkingDetails} />
   </Stack.Navigator>
 );
 
-// Main App Component with Auto-Login & Redirection
+// App Component with auto-login logic
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState('LoginForm');
