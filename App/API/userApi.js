@@ -1,11 +1,13 @@
 import client from './client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Helper function to get auth headers
+// Helper function to get authorization headers
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem('token');
   return {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   };
 };
 
@@ -20,7 +22,7 @@ const getAllUsers = async () => {
   }
 };
 
-// ✅ Fetch logged-in user's profile
+// ✅ Fetch logged-in user's profile (used throughout the app)
 const getUserProfile = async () => {
   try {
     const authHeaders = await getAuthHeaders();
@@ -31,7 +33,7 @@ const getUserProfile = async () => {
   }
 };
 
-// ✅ Delete user (Admin only)
+// ✅ Delete a user (Admin only)
 const deleteUser = async (userId) => {
   try {
     const authHeaders = await getAuthHeaders();
@@ -42,7 +44,7 @@ const deleteUser = async (userId) => {
   }
 };
 
-// ✅ Fetch all guides dynamically
+// ✅ Fetch all guides dynamically (public)
 const getGuides = async () => {
   try {
     const response = await client.get('/guides');
@@ -52,7 +54,7 @@ const getGuides = async () => {
   }
 };
 
-// ✅ Fetch a specific guide's details
+// ✅ Fetch a specific guide's profile
 const getGuideProfile = async (guideId) => {
   try {
     const response = await client.get(`/guide/${guideId}`);
@@ -62,7 +64,7 @@ const getGuideProfile = async (guideId) => {
   }
 };
 
-// ✅ Update user profile (Name, Email, Address, Phone)
+// ✅ Update user profile (name, email, address, phone)
 const updateUserProfile = async (userData) => {
   try {
     const authHeaders = await getAuthHeaders();
@@ -73,7 +75,7 @@ const updateUserProfile = async (userData) => {
   }
 };
 
-// ✅ Upload or update profile picture
+// ✅ Upload or update user profile picture
 const uploadProfilePicture = async (formData) => {
   try {
     const token = await AsyncStorage.getItem('token');
@@ -89,7 +91,7 @@ const uploadProfilePicture = async (formData) => {
   }
 };
 
-// ✅ Update guide details (Admin only - for experience, language, trek count)
+// ✅ Update guide details (Admin only)
 const updateGuideDetails = async (guideId, guideData) => {
   try {
     const authHeaders = await getAuthHeaders();
@@ -137,5 +139,5 @@ export default {
   uploadProfilePicture,
   updateGuideDetails,
   createGuide,
-  uploadGuideProfilePicture
+  uploadGuideProfilePicture,
 };

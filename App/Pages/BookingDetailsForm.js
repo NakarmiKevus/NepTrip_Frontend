@@ -1,3 +1,5 @@
+// ✅ Updated BookingDetailsForm.js
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,12 +16,13 @@ import {
 import { Feather } from '@expo/vector-icons';
 import bookingApi from '../API/bookingApi';
 import userApi from '../API/userApi';
+import trekkingApi from '../API/trekkingApi';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const BookingDetailsForm = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedDate, guideId } = route.params;
+  const { selectedDate, guideId, selectedTrek } = route.params || {};
 
   const [formData, setFormData] = useState({
     fullname: '',
@@ -27,99 +30,90 @@ const BookingDetailsForm = () => {
     address: '',
     phone: '',
     peopleCount: '',
-    destination: '',
-    paymentMethod: '', // Added payment method field
-    advancePayment: false, // Whether user will pay advance
-    advanceAmount: '0', // Amount for advance payment
-    guide: guideId, // Add the guide ID to the booking
+    destination: selectedTrek?.name || '',
+    paymentMethod: '',
+    advancePayment: false,
+    advanceAmount: '0',
+    guide: guideId,
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [trekkingOptions, setTrekkingOptions] = useState([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [selectedGuide, setSelectedGuide] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Payment method options - simplified to just online and cash
-  const paymentMethods = [
-    { id: 'cash', name: 'Cash on Arrival', icon: 'dollar-sign' },
-    { id: 'online', name: 'Online Payment', icon: 'credit-card' },
-  ];
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const checkBooking = async () => {
-      try {
-        const response = await bookingApi.getLatestBooking();
-        if (response.success && response.booking && response.booking.status !== 'completed') {
-          navigation.replace('BookingStatusLoader');
-        } else {
-          // Fetch guide details if we have a guideId
-          if (guideId) {
-            fetchGuideDetails();
-          }
-        }
-      } catch (error) {
-        console.log('No ongoing booking:', error);
-        // Fetch guide details if we have a guideId
-        if (guideId) {
-          fetchGuideDetails();
-        } else {
-          setLoading(false);
-        }
-      }
-    };
-    checkBooking();
+    fetchInitialData();
   }, []);
 
-  const fetchGuideDetails = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const response = await userApi.getGuideProfile(guideId);
-      if (response.success) {
-        setSelectedGuide(response.guide);
-      } else {
-        Alert.alert('Error', 'Could not fetch guide details.');
+
+      const bookingRes = await bookingApi.getLatestBooking();
+      if (bookingRes.success && bookingRes.booking && bookingRes.booking.status !== 'completed') {
+        navigation.replace('BookingStatusLoader');
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching guide details:', error);
-      Alert.alert('Error', 'Failed to load guide information.');
+
+      // ✅ Use getUserProfile instead of getCurrentUser
+      const profileRes = await userApi.getUserProfile();
+      if (profileRes.success && profileRes.user) {
+        const user = profileRes.user;
+        setFormData((prev) => ({
+          ...prev,
+          fullname: user.fullname || '',
+          email: user.email || '',
+          address: user.address || '',
+          phone: user.phoneNumber || '', // ✅ correct field
+        }));
+      }
+
+      const trekRes = await trekkingApi.getAllTrekking();
+      setTrekkingOptions(trekRes?.trekkingSpots || []);
+
+      if (guideId) {
+        const guideRes = await userApi.getGuideProfile(guideId);
+        if (guideRes.success) {
+          setSelectedGuide(guideRes.guide);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      Alert.alert('Error', 'Failed to load booking form data');
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (key, value) => {
-    setFormData({ ...formData, [key]: value });
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const selectPaymentMethod = (methodId) => {
     setSelectedPaymentMethod(methodId);
-    setFormData({ 
-      ...formData, 
+    setFormData((prev) => ({
+      ...prev,
       paymentMethod: methodId,
-      // Reset advance payment if switching to cash
-      advancePayment: methodId === 'cash' ? false : formData.advancePayment,
-      advanceAmount: methodId === 'cash' ? '0' : formData.advanceAmount
-    });
+      advancePayment: methodId === 'cash' ? false : prev.advancePayment,
+      advanceAmount: methodId === 'cash' ? '0' : prev.advanceAmount,
+    }));
   };
-  
+
   const toggleAdvancePayment = () => {
-    setFormData({ 
-      ...formData, 
-      advancePayment: !formData.advancePayment,
-      advanceAmount: !formData.advancePayment ? '500' : '0'
-    });
+    setFormData((prev) => ({
+      ...prev,
+      advancePayment: !prev.advancePayment,
+      advanceAmount: !prev.advancePayment ? '500' : '0',
+    }));
   };
 
   const handleSubmit = async () => {
     const { fullname, email, address, phone, peopleCount, destination, paymentMethod } = formData;
 
-    if (!fullname || !email || !address || !phone || !peopleCount || !destination) {
-      Alert.alert('Error', 'Please fill all required fields.');
-      return;
-    }
-
-    if (!paymentMethod) {
-      Alert.alert('Error', 'Please select a payment method.');
+    if (!fullname || !email || !address || !phone || !peopleCount || !destination || !paymentMethod) {
+      Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
 
@@ -130,148 +124,134 @@ const BookingDetailsForm = () => {
         date: selectedDate,
         paymentStatus: formData.advancePayment ? 'partially_paid' : 'unpaid',
         paymentAmount: formData.advancePayment ? parseInt(formData.advanceAmount, 10) || 0 : 0,
-        guide: guideId // Ensure the guide ID is included in the request
+        guide: guideId,
       };
-      
+
       const response = await bookingApi.requestBooking(bookingPayload);
 
-      setIsSubmitting(false);
-
       if (response.success) {
-        Alert.alert('Success', 'Booking request sent!');
+        Alert.alert('Success', 'Booking request submitted!');
         navigation.replace('BookingStatusLoader');
       } else {
-        Alert.alert('Error', response.message || 'Failed to send booking request.');
+        Alert.alert('Error', response.message || 'Booking failed.');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      console.log('Error booking:', error);
-      Alert.alert('Error', 'Something went wrong.');
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Booking Details</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
       <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.heading}>Booking Details</Text>
+
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Loading guide information...</Text>
-          </View>
+          <ActivityIndicator size="large" color="black" />
         ) : (
           <>
-            {/* Guide Info Card */}
             {selectedGuide && (
-              <View style={styles.guideInfoCard}>
-                <View style={styles.guideInfoHeader}>
-                  <Image 
-                    source={selectedGuide.avatar ? { uri: selectedGuide.avatar } : require('../../assets/images/Profile.png')} 
-                    style={styles.guideAvatar} 
-                  />
-                  <View style={styles.guideInfoTextContainer}>
-                    <Text style={styles.guideName}>{selectedGuide.fullname}</Text>
-                    <Text style={styles.guideDetail}>Experience: {selectedGuide.experience || 'N/A'}</Text>
-                  </View>
+              <View style={styles.guideCard}>
+                <Image
+                  source={selectedGuide.avatar ? { uri: selectedGuide.avatar } : require('../../assets/images/Profile.png')}
+                  style={styles.guideImage}
+                />
+                <View>
+                  <Text style={styles.guideName}>{selectedGuide.fullname}</Text>
+                  <Text style={styles.guideExperience}>Experience: {selectedGuide.experience}</Text>
                 </View>
               </View>
             )}
 
-            <View style={styles.dateInfoContainer}>
-              <Feather name="calendar" size={20} color="#666" />
-              <Text style={styles.dateInfoText}>Booking for: {selectedDate}</Text>
-            </View>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput style={styles.input} value={formData.fullname} onChangeText={(val) => handleChange('fullname', val)} />
 
-            <View style={styles.formContainer}>
-              <Text style={styles.sectionTitle}>Personal Details</Text>
+            <Text style={styles.label}>Email</Text>
+            <TextInput style={styles.input} value={formData.email} onChangeText={(val) => handleChange('email', val)} keyboardType="email-address" />
 
-              <FormInput label="Full Name" value={formData.fullname} onChangeText={(val) => handleChange('fullname', val)} />
-              <FormInput label="Email Address" value={formData.email} onChangeText={(val) => handleChange('email', val)} keyboardType="email-address" />
-              <FormInput label="Phone Number" value={formData.phone} onChangeText={(val) => handleChange('phone', val)} keyboardType="phone-pad" />
-              <FormInput label="Address" value={formData.address} onChangeText={(val) => handleChange('address', val)} />
+            <Text style={styles.label}>Phone</Text>
+            <TextInput style={styles.input} value={formData.phone} onChangeText={(val) => handleChange('phone', val)} keyboardType="phone-pad" />
 
-              <Text style={styles.sectionTitle}>Trip Details</Text>
+            <Text style={styles.label}>Address</Text>
+            <TextInput style={styles.input} value={formData.address} onChangeText={(val) => handleChange('address', val)} />
 
-              <FormInput label="Number of People" value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
-              <FormInput label="Destination" value={formData.destination} onChangeText={(val) => handleChange('destination', val)} />
+            <Text style={styles.label}>Number of People</Text>
+            <TextInput style={styles.input} value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
 
-              {/* Payment Method Section */}
-              <Text style={styles.sectionTitle}>Payment Details</Text>
-              <Text style={styles.paymentNote}>Please select your preferred payment method:</Text>
-              
-              <View style={styles.paymentMethodsContainer}>
-                {paymentMethods.map((method) => (
-                  <TouchableOpacity
-                    key={method.id}
-                    style={[
-                      styles.paymentMethod,
-                      selectedPaymentMethod === method.id && styles.selectedPaymentMethod
-                    ]}
-                    onPress={() => selectPaymentMethod(method.id)}
-                  >
-                    <Feather 
-                      name={method.icon} 
-                      size={24} 
-                      color={selectedPaymentMethod === method.id ? '#fff' : '#333'} 
-                    />
-                    <Text 
-                      style={[
-                        styles.paymentMethodText,
-                        selectedPaymentMethod === method.id && styles.selectedPaymentMethodText
-                      ]}
-                    >
-                      {method.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Advance Payment Option - only show for online payments */}
-              {selectedPaymentMethod === 'online' && (
-                <TouchableOpacity 
-                  style={styles.advancePaymentContainer}
-                  onPress={toggleAdvancePayment}
+            <Text style={styles.label}>Destination</Text>
+            <View style={styles.dropdown}>
+              {trekkingOptions.map((trek) => (
+                <TouchableOpacity
+                  key={trek._id}
+                  onPress={() => handleChange('destination', trek.name)}
+                  style={[
+                    styles.dropdownItem,
+                    formData.destination === trek.name && styles.dropdownSelected,
+                  ]}
                 >
-                  <View style={styles.checkboxContainer}>
-                    <View style={[styles.checkbox, formData.advancePayment && styles.checkboxSelected]}>
-                      {formData.advancePayment && <Feather name="check" size={16} color="#fff" />}
-                    </View>
-                    <Text style={styles.advancePaymentText}>Pay advance amount</Text>
-                  </View>
-                  
-                  {formData.advancePayment && (
-                    <View style={styles.advanceAmountContainer}>
-                      <Text style={styles.advanceAmountLabel}>Advance Amount (₹):</Text>
-                      <TextInput
-                        style={styles.advanceAmountInput}
-                        value={formData.advanceAmount}
-                        onChangeText={(val) => handleChange('advanceAmount', val)}
-                        keyboardType="numeric"
-                        placeholder="Enter amount"
-                      />
-                    </View>
-                  )}
+                  <Text style={formData.destination === trek.name ? styles.selectedText : styles.dropdownText}>
+                    {trek.name}
+                  </Text>
                 </TouchableOpacity>
-              )}
+              ))}
             </View>
+
+            <Text style={styles.label}>Payment Method</Text>
+            <View style={styles.paymentContainer}>
+              {['cash', 'online'].map((method) => (
+                <TouchableOpacity
+                  key={method}
+                  style={[
+                    styles.paymentButton,
+                    selectedPaymentMethod === method && styles.paymentButtonSelected,
+                  ]}
+                  onPress={() => selectPaymentMethod(method)}
+                >
+                  <Feather
+                    name={method === 'cash' ? 'dollar-sign' : 'credit-card'}
+                    size={18}
+                    color={selectedPaymentMethod === method ? '#fff' : '#000'}
+                  />
+                  <Text style={selectedPaymentMethod === method ? styles.paymentTextSelected : styles.paymentText}>
+                    {method === 'cash' ? 'Cash on Arrival' : 'Online Payment'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {selectedPaymentMethod === 'online' && (
+              <TouchableOpacity onPress={toggleAdvancePayment} style={styles.advanceBox}>
+                <Feather
+                  name={formData.advancePayment ? 'check-square' : 'square'}
+                  size={20}
+                  color={formData.advancePayment ? 'black' : '#ccc'}
+                />
+                <Text style={styles.advanceLabel}>Pay advance amount</Text>
+              </TouchableOpacity>
+            )}
+
+            {selectedPaymentMethod === 'online' && formData.advancePayment && (
+              <>
+                <Text style={styles.label}>Advance Amount</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.advanceAmount}
+                  onChangeText={(val) => handleChange('advanceAmount', val)}
+                  keyboardType="numeric"
+                />
+              </>
+            )}
 
             <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+              style={[styles.submitButton, isSubmitting && styles.disabled]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit Booking Request</Text>
-              )}
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? 'Submitting...' : 'Submit Booking Request'}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -280,224 +260,106 @@ const BookingDetailsForm = () => {
   );
 };
 
-const FormInput = ({ label, value, onChangeText, keyboardType = 'default' }) => (
-  <View style={styles.inputGroup}>
-    <Text style={styles.label}>{label}</Text>
-    <TextInput
-      placeholder={`Enter your ${label.toLowerCase()}`}
-      value={value}
-      onChangeText={onChangeText}
-      style={styles.input}
-      keyboardType={keyboardType}
-      autoCapitalize="none"
-    />
-  </View>
-);
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { padding: 20 },
+  heading: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  guideCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 40,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  container: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
-  },
-  guideInfoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  guideInfoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  guideAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 12,
-  },
-  guideInfoTextContainer: {
-    flex: 1,
-  },
-  guideName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  guideDetail: {
-    fontSize: 14,
-    color: '#666',
-  },
-  dateInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e6f7ff',
+    backgroundColor: '#f3f3f3',
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderRadius: 10,
+    marginBottom: 20,
   },
-  dateInfoText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#333',
-  },
-  formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 6,
-  },
+  guideImage: { width: 50, height: 50, borderRadius: 25, marginRight: 10 },
+  guideName: { fontSize: 16, fontWeight: '600' },
+  guideExperience: { fontSize: 14, color: '#666' },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 6, marginTop: 12 },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
-    fontSize: 16,
+    fontSize: 15,
+    marginBottom: 8,
   },
-  // Payment Method Styles
-  paymentNote: {
-    fontSize: 14,
-    color: '#666',
+  dropdown: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingVertical: 4,
     marginBottom: 12,
   },
-  paymentMethodsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+  dropdownItem: {
+    padding: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ccc',
   },
-  paymentMethod: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 12,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  selectedPaymentMethod: {
+  dropdownSelected: {
     backgroundColor: '#000',
-    borderColor: '#000',
   },
-  paymentMethodText: {
-    marginTop: 8,
-    fontSize: 12,
-    textAlign: 'center',
+  dropdownText: {
+    fontSize: 14,
     color: '#333',
   },
-  selectedPaymentMethodText: {
+  selectedText: {
+    fontSize: 14,
     color: '#fff',
   },
-  // Advance Payment Styles
-  advancePaymentContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 15,
+  paymentContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
     marginBottom: 20,
   },
-  checkboxContainer: {
+  paymentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#666',
-    marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxSelected: {
+  paymentButtonSelected: {
     backgroundColor: '#000',
     borderColor: '#000',
   },
-  advancePaymentText: {
-    fontSize: 16,
+  paymentText: {
+    marginLeft: 6,
+    color: '#000',
+    fontSize: 14,
+  },
+  paymentTextSelected: {
+    marginLeft: 6,
+    color: '#fff',
+    fontSize: 14,
+  },
+  advanceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  advanceLabel: {
+    marginLeft: 8,
+    fontSize: 14,
     color: '#333',
   },
-  advanceAmountContainer: {
-    marginTop: 15,
-  },
-  advanceAmountLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 6,
-  },
-  advanceAmountInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
   submitButton: {
-    backgroundColor: 'black',
+    backgroundColor: '#000',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  disabledButton: {
-    backgroundColor: '#999',
+    marginTop: 20,
   },
   submitButtonText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabled: {
+    opacity: 0.6,
   },
 });
 

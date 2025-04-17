@@ -27,6 +27,7 @@ import GuideDatabase from './App/Pages/GuideDatabase';
 import UserDetails from './App/Pages/UserDetails';
 import GuideDashboard from './App/Pages/GuideDashboard';
 import Tours from './App/Pages/Tours';
+import AddGuide from './App/Pages/AddGuide';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,13 +50,22 @@ const GuideStackNavigator = () => (
   </Stack.Navigator>
 );
 
-// ✅ Admin Stack
+// Admin Stack - Fixed by ensuring clean formatting
 const AdminDashboardStackNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AdminDashboardMain" component={AdminDashboard} />
     <Stack.Screen name="TrekkingForm" component={TrekkingForm} />
     <Stack.Screen name="EditTrekking" component={EditTrekking} />
     <Stack.Screen name="TrekkingDetails" component={TrekkingDetails} />
+    <Stack.Screen name="AddGuide" component={AddGuide} />
+  </Stack.Navigator>
+);
+
+// Guides Stack - Added new navigator for Guides tab
+const GuidesStackNavigator = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="GuidesMain" component={GuideDatabase} />
+    <Stack.Screen name="AddGuide" component={AddGuide} />
   </Stack.Navigator>
 );
 
@@ -111,7 +121,7 @@ const GuideBottomTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// ✅ Admin Bottom Tabs
+// Admin Bottom Tabs
 const AdminBottomTabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -131,7 +141,7 @@ const AdminBottomTabNavigator = () => (
   >
     <Tab.Screen name="Dashboard" component={AdminDashboardStackNavigator} />
     <Tab.Screen name="Users" component={UserDetails} />
-    <Tab.Screen name="Guides" component={GuideDatabase} />
+    <Tab.Screen name="Guides" component={GuidesStackNavigator} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );
