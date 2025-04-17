@@ -13,13 +13,18 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import TrekkingApi from "../API/trekkingApi";
-import DashboardTrekkingCard from "../Components/DashboardTrekkingCard"; // Assuming you have a component for displaying trekking cards
+import DashboardTrekkingCard from "../Components/DashboardTrekkingCard";
+import TrekDetailModal from "../Components/TrekDetailModal"; // ✅ Import modal
 
 const AdminDashboard = ({ navigation }) => {
   const [trekkingPlaces, setTrekkingPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // ✅ Modal state
+  const [selectedTrek, setSelectedTrek] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   useEffect(() => {
     fetchTrekkingPlaces();
@@ -51,8 +56,9 @@ const AdminDashboard = ({ navigation }) => {
     fetchTrekkingPlaces();
   };
 
-  const handleTrekkingPress = (trekId) => {
-    navigation.navigate("TrekkingDetails", { trekId });
+  const handleTrekkingPress = (trek) => {
+    setSelectedTrek(trek);
+    setDetailModalVisible(true);
   };
 
   const handleAddTrekkingPress = () => {
@@ -86,7 +92,6 @@ const AdminDashboard = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Trekking Dashboard</Text>
           <TouchableOpacity style={styles.addButton} onPress={handleAddTrekkingPress}>
@@ -95,7 +100,6 @@ const AdminDashboard = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Loading */}
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4A90E2" />
@@ -115,13 +119,15 @@ const AdminDashboard = ({ navigation }) => {
             renderItem={({ item }) => (
               <DashboardTrekkingCard
                 item={item}
-                onPress={handleTrekkingPress}
+                onPress={() => handleTrekkingPress(item)} // ✅ show modal
                 onEdit={handleEditTrekking}
                 onDelete={handleDeleteTrekking}
               />
             )}
             contentContainerStyle={styles.listContainer}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#4A90E2"]} />}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#4A90E2"]} />
+            }
             showsVerticalScrollIndicator={false}
           />
         ) : (
@@ -134,6 +140,13 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         )}
       </View>
+
+      {/* ✅ Trek Detail Modal */}
+      <TrekDetailModal
+        visible={detailModalVisible}
+        onClose={() => setDetailModalVisible(false)}
+        trek={selectedTrek}
+      />
     </SafeAreaView>
   );
 };

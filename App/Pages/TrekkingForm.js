@@ -11,6 +11,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
 import { Rating } from 'react-native-ratings';
 import TrekkingApi from '../API/trekkingApi';
 
@@ -130,7 +131,8 @@ const TrekkingForm = ({ navigation }) => {
       formData.append('name', name);
       formData.append('location', location);
       formData.append('altitude', altitude);
-      formData.append('rating', rating.toString()); // Add the rating field
+      const roundedRating = Math.round(rating * 2) / 2; // Round to the nearest 0.5
+      formData.append('rating', roundedRating.toString());
       formData.append('review', review);
       formData.append('distance_from_user', distance);
       formData.append('time_to_complete', timeToComplete);
@@ -138,8 +140,8 @@ const TrekkingForm = ({ navigation }) => {
       formData.append('eco_cultural_info', ecoCulturalInfo);
       
       // Add gear checklist
-      gearChecklist.forEach(item => {
-        formData.append('gear_checklist[]', item);
+      gearChecklist.forEach((item, index) => {
+        formData.append(`gear_checklist[${index}]`, item);
       });
       
       // Add each image to the form data
@@ -175,10 +177,9 @@ const TrekkingForm = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Feather name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.header}>Add New Trekking Place</Text>
-        <View style={styles.spacer} />
       </View>
 
       {/* Basic Details */}
@@ -250,7 +251,10 @@ const TrekkingForm = ({ navigation }) => {
           ratingCount={5}
           imageSize={30}
           fractions={2} // Enables half-star ratings
-          onFinishRating={(value) => setRating(value)}
+          onFinishRating={(value) => {
+            const roundedValue = Math.round(value * 2) / 2; // Round to the nearest 0.5
+            setRating(roundedValue);
+          }}
           style={{ paddingVertical: 10 }}
           startingValue={rating}
         />
@@ -362,25 +366,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: 20,
   },
   backButton: {
     padding: 8,
+    marginBottom: 15, 
+    size: 200,
   },
   backButtonText: {
     fontSize: 16,
     color: '#007bff',
   },
   spacer: {
-    width: 50, // Same width as back button to center the title
+    width: 50, 
   },
   header: {
     fontSize: 20,
     fontWeight: 'bold',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   input: {
     borderWidth: 1,

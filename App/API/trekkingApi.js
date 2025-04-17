@@ -22,7 +22,7 @@ const getTrekkingById = async (id) => {
   }
 };
 
-// ✅ Add a new trekking place (Admin)
+// ✅ Add a new trekking place (with images)
 const addTrekking = async (trekkingData) => {
   try {
     const response = await apiClient.post('/dashboard', trekkingData, {
@@ -37,7 +37,7 @@ const addTrekking = async (trekkingData) => {
   }
 };
 
-// ✅ Update a trekking place (Admin)
+// ✅ Update trekking place (without image update for now)
 const updateTrekking = async (id, trekkingData) => {
   try {
     const response = await apiClient.put(`/dashboard/${id}`, trekkingData);
@@ -48,7 +48,7 @@ const updateTrekking = async (id, trekkingData) => {
   }
 };
 
-// ✅ Delete a trekking place (Admin)
+// ✅ Delete trekking place
 const deleteTrekking = async (id) => {
   try {
     const response = await apiClient.delete(`/dashboard/${id}`);
