@@ -2,28 +2,42 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   FlatList,
   Image,
   TouchableOpacity,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
 import TrekkingApi from '../API/trekkingApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Feather from 'react-native-vector-icons/Feather';
+import TrekDetailModal from '../Components/TrekDetailModal'; // for admin
+import UserTrekDetailModal from '../Components/UserTrekDetailModal'; // for user
 
-const Dashboard = ({ navigation }) => {
+const Dashboard = () => {
   const [trekkingPlaces, setTrekkingPlaces] = useState([]);
+  const [filteredPlaces, setFilteredPlaces] = useState([]);
+  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTrek, setSelectedTrek] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     fetchTrekkingPlaces();
+    getUserRole();
   }, []);
 
   const fetchTrekkingPlaces = async () => {
     try {
       const response = await TrekkingApi.getAllTrekking();
-      setTrekkingPlaces(response?.trekkingSpots || []);
+      const places = response?.trekkingSpots || [];
+      setTrekkingPlaces(places);
+      setFilteredPlaces(shuffleArray(places));
     } catch (error) {
       console.error('Error fetching trekking places:', error.message);
     } finally {
@@ -32,18 +46,47 @@ const Dashboard = ({ navigation }) => {
     }
   };
 
+  const getUserRole = async () => {
+    const role = await AsyncStorage.getItem('userRole');
+    setUserRole(role || '');
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchTrekkingPlaces();
+    setSearchText('');
+  };
+
+  const openTrekDetails = (trek) => {
+    setSelectedTrek(trek);
+    setModalVisible(true);
+  };
+
+  const handleSearch = (text) => {
+    setSearchText(text);
+    if (text.trim() === '') {
+      setFilteredPlaces(trekkingPlaces);
+    } else {
+      const filtered = trekkingPlaces.filter((trek) =>
+        trek.name.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredPlaces(filtered);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchText('');
+    setFilteredPlaces(trekkingPlaces);
+  };
+
+  const shuffleArray = (array) => {
+    return [...array].sort(() => Math.random() - 0.5);
   };
 
   const renderHorizontalCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.smallCard}
-      onPress={() => navigation.navigate('TrekkingDetails', { trekId: item._id })}
-    >
+    <TouchableOpacity style={styles.smallCard} onPress={() => openTrekDetails(item)}>
       <Image
-        source={{ uri: item.image || 'https://via.placeholder.com/150' }}
+        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
         style={styles.smallImage}
       />
       <Text style={styles.smallTitle}>{item.name}</Text>
@@ -51,13 +94,9 @@ const Dashboard = ({ navigation }) => {
   );
 
   const renderVerticalCard = (item) => (
-    <TouchableOpacity
-      key={item._id}
-      style={styles.verticalCard}
-      onPress={() => navigation.navigate('TrekkingDetails', { trekId: item._id })}
-    >
+    <TouchableOpacity key={item._id} style={styles.verticalCard} onPress={() => openTrekDetails(item)}>
       <Image
-        source={{ uri: item.image || 'https://via.placeholder.com/300' }}
+        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
         style={styles.verticalImage}
       />
       <View style={{ padding: 10 }}>
@@ -68,45 +107,105 @@ const Dashboard = ({ navigation }) => {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <Text style={styles.mainTitle}>Ready for a New Adventure?</Text>
-      <Text style={styles.subtitle}>Discover new places, hidden gems, and unforgettable experiences</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Content Wrapper */}
+        <View style={styles.contentWrapper}>
+          {/* Search Bar */}
+          <View style={styles.searchBox}>
+            <View style={styles.searchContainer}>
+              <Feather name="search" size={20} color="#666" style={styles.searchIcon} />
+              <TextInput
+                placeholder="Search treks..."
+                style={styles.searchInput}
+                placeholderTextColor="#666"
+                value={searchText}
+                onChangeText={handleSearch}
+              />
+              {searchText.length > 0 && (
+                <TouchableOpacity onPress={clearSearch}>
+                  <Feather name="x" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
-      {trekkingPlaces[0] && (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('TrekkingDetails', { trekId: trekkingPlaces[0]._id })}
-        >
-          <Image
-            source={{ uri: trekkingPlaces[0].image || 'https://via.placeholder.com/400' }}
-            style={styles.featureImage}
+          <Text style={styles.mainTitle}>Ready for a New Adventure?</Text>
+          <Text style={styles.subtitle}>
+            Discover new places, hidden gems, and unforgettable experiences
+          </Text>
+
+          {filteredPlaces[0] && (
+            <TouchableOpacity onPress={() => openTrekDetails(filteredPlaces[0])}>
+              <Image
+                source={{ uri: filteredPlaces[0].images?.[0] || 'https://via.placeholder.com/400' }}
+                style={styles.featureImage}
+              />
+              <Text style={styles.featureTitle}>{filteredPlaces[0].name}</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.sectionTitle}>Explore Top Spots</Text>
+          <FlatList
+            data={filteredPlaces.slice(1, 4)}
+            renderItem={renderHorizontalCard}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item._id}
+            style={{ marginBottom: 20 }}
           />
-          <Text style={styles.featureTitle}>{trekkingPlaces[0].name}</Text>
-        </TouchableOpacity>
-      )}
 
-      <Text style={styles.sectionTitle}>Explore Top Spots</Text>
-      <FlatList
-        data={trekkingPlaces.slice(1, 4)}
-        renderItem={renderHorizontalCard}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item._id}
-        style={{ marginBottom: 20 }}
-      />
+          <Text style={styles.sectionTitle}>Iconic Places to Visit</Text>
+          {filteredPlaces.slice(4).map(renderVerticalCard)}
 
-      <Text style={styles.sectionTitle}>Iconic Places to Visit</Text>
-      {trekkingPlaces.slice(4).map(renderVerticalCard)}
-    </ScrollView>
+          {userRole === 'admin' ? (
+            <TrekDetailModal
+              visible={modalVisible}
+              onClose={() => setModalVisible(false)}
+              trek={selectedTrek}
+            />
+          ) : (
+            <UserTrekDetailModal
+              visible={modalVisible}
+              onClose={() => setModalVisible(false)}
+              trek={selectedTrek}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
+  safeArea: { flex: 1, backgroundColor: '#fff',},
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
   mainTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 6 },
   subtitle: { fontSize: 14, color: '#666', marginBottom: 14 },
+  searchBox: {
+    marginTop: 10,
+    width: '100%',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 30,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    marginLeft:6,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: '#333',
+  },
   featureImage: {
     width: '100%',
     height: 220,
@@ -161,6 +260,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 2,
+  },
+  contentWrapper: {
+    marginTop: 35,
   },
 });
 

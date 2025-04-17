@@ -172,7 +172,7 @@ export default function App() {
             setInitialRoute('Dashboard');
         }
       } else {
-        setInitialRoute('LoginForm');
+        setInitialRoute('AppForm');
       }
 
       setLoading(false);
