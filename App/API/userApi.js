@@ -129,6 +129,22 @@ const uploadGuideProfilePicture = async (guideId, formData) => {
   }
 };
 
+// ✅ Upload guide's QR code (Admin only)
+const uploadGuideQrCode = async (guideId, formData) => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const response = await client.post(`/upload-guide-qr/${guideId}`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export default {
   getAllUsers,
   getUserProfile,
@@ -140,4 +156,5 @@ export default {
   updateGuideDetails,
   createGuide,
   uploadGuideProfilePicture,
+  uploadGuideQrCode, // ✅ New function for QR code upload
 };

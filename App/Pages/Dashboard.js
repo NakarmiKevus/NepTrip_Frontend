@@ -83,6 +83,23 @@ const Dashboard = () => {
     return [...array].sort(() => Math.random() - 0.5);
   };
 
+  const handleBookPress = async (trek) => {
+    try {
+      const res = await bookingApi.getLatestBooking();
+      if (res.success && ['pending', 'accepted'].includes(res.booking.status)) {
+        await AsyncStorage.setItem('latestBookingId', res.booking._id);
+        navigation.replace('BookingStatusLoader');
+        return;
+      }
+
+      // ✅ If no existing booking, go to guide screen
+      navigation.navigate('Guide', { selectedTrek: trek }); // pass trek if needed
+    } catch (err) {
+      console.log('Booking check failed:', err);
+      navigation.navigate('Guide', { selectedTrek: trek });
+    }
+  };
+
   const renderHorizontalCard = ({ item }) => (
     <TouchableOpacity style={styles.smallCard} onPress={() => openTrekDetails(item)}>
       <Image
@@ -94,7 +111,7 @@ const Dashboard = () => {
   );
 
   const renderVerticalCard = (item) => (
-    <TouchableOpacity key={item._id} style={styles.verticalCard} onPress={() => openTrekDetails(item)}>
+    <TouchableOpacity key={item._id} style={styles.verticalCard} onPress={() => handleBookPress(item)}>
       <Image
         source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
         style={styles.verticalImage}

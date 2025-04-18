@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, Modal, ScrollView, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  StyleSheet
+} from 'react-native';
 import { getInitials, getRandomColor } from '../utils/Methods';
 
 const GuideDetailModal = ({
@@ -10,7 +19,6 @@ const GuideDetailModal = ({
   onDeletePress,
   deleteLoading,
 }) => {
-
   const renderAvatar = () => {
     if (guide?.avatar) {
       return <Image source={{ uri: guide.avatar }} style={styles.avatar} />;
@@ -30,6 +38,17 @@ const GuideDetailModal = ({
     </View>
   );
 
+  const renderQrCode = () => (
+    <View style={{ alignItems: 'center', marginTop: 15 }}>
+      <Text style={styles.label}>QR Code:</Text>
+      {guide?.qrCode ? (
+        <Image source={{ uri: guide.qrCode }} style={styles.qrImage} />
+      ) : (
+        <Text style={{ color: '#999', fontStyle: 'italic' }}>No QR code uploaded</Text>
+      )}
+    </View>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
@@ -45,6 +64,7 @@ const GuideDetailModal = ({
             {renderDetail('Experience', guide?.experience)}
             {renderDetail('Languages', guide?.language)}
             {renderDetail('Trek Count', guide?.trekCount)}
+            {renderQrCode()}
           </ScrollView>
 
           <View style={styles.buttonRow}>
@@ -115,6 +135,13 @@ const styles = StyleSheet.create({
   value: {
     color: '#333',
     flex: 1,
+  },
+  qrImage: {
+    width: 120,
+    height: 120,
+    marginTop: 10,
+    borderRadius: 8,
+    resizeMode: 'contain',
   },
   buttonRow: {
     flexDirection: 'row',

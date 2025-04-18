@@ -1,5 +1,3 @@
-// ✅ Updated BookingDetailsForm.js
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,8 +10,11 @@ import {
   Alert,
   SafeAreaView,
   Image,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import bookingApi from '../API/bookingApi';
 import userApi from '../API/userApi';
 import trekkingApi from '../API/trekkingApi';
@@ -42,6 +43,9 @@ const BookingDetailsForm = () => {
   const [selectedGuide, setSelectedGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for destination selection modal
+  const [destinationModalVisible, setDestinationModalVisible] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -52,12 +56,17 @@ const BookingDetailsForm = () => {
       setLoading(true);
 
       const bookingRes = await bookingApi.getLatestBooking();
-      if (bookingRes.success && bookingRes.booking && bookingRes.booking.status !== 'completed') {
+      if (
+        bookingRes.success &&
+        bookingRes.booking &&
+        ['pending', 'accepted'].includes(bookingRes.booking.status)
+      ) {
+        await AsyncStorage.setItem('latestBookingId', bookingRes.booking._id);
         navigation.replace('BookingStatusLoader');
         return;
       }
 
-      // ✅ Use getUserProfile instead of getCurrentUser
+      // Use getUserProfile instead of getCurrentUser
       const profileRes = await userApi.getUserProfile();
       if (profileRes.success && profileRes.user) {
         const user = profileRes.user;
@@ -66,7 +75,7 @@ const BookingDetailsForm = () => {
           fullname: user.fullname || '',
           email: user.email || '',
           address: user.address || '',
-          phone: user.phoneNumber || '', // ✅ correct field
+          phone: user.phoneNumber || '',
         }));
       }
 
@@ -109,6 +118,14 @@ const BookingDetailsForm = () => {
     }));
   };
 
+  // Use all destinations without filtering
+  const filteredDestinations = trekkingOptions;
+
+  const selectDestination = (destination) => {
+    handleChange('destination', destination);
+    setDestinationModalVisible(false);
+  };
+
   const handleSubmit = async () => {
     const { fullname, email, address, phone, peopleCount, destination, paymentMethod } = formData;
 
@@ -120,20 +137,28 @@ const BookingDetailsForm = () => {
     try {
       setIsSubmitting(true);
       const bookingPayload = {
-        ...formData,
+        fullname,
+        email,
+        address,
+        phone,
+        peopleCount,
+        destination,
         date: selectedDate,
+        guide: guideId,
+        paymentMethod,
         paymentStatus: formData.advancePayment ? 'partially_paid' : 'unpaid',
         paymentAmount: formData.advancePayment ? parseInt(formData.advanceAmount, 10) || 0 : 0,
-        guide: guideId,
       };
 
       const response = await bookingApi.requestBooking(bookingPayload);
 
       if (response.success) {
+        // Save booking ID for loader screen
+        await AsyncStorage.setItem('latestBookingId', response.booking._id);
         Alert.alert('Success', 'Booking request submitted!');
         navigation.replace('BookingStatusLoader');
       } else {
-        Alert.alert('Error', response.message || 'Booking failed.');
+        Alert.alert('Error', response.message || 'Failed to make booking');
       }
     } catch (err) {
       console.error(err);
@@ -142,6 +167,63 @@ const BookingDetailsForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Destination modal component
+  const DestinationSelectionModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={destinationModalVisible}
+      onRequestClose={() => setDestinationModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Destination</Text>
+            <TouchableOpacity onPress={() => setDestinationModalVisible(false)}>
+              <Feather name="x" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          
+
+          
+          {filteredDestinations.length > 0 ? (
+            <FlatList
+              data={filteredDestinations}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.destinationItem}
+                  onPress={() => selectDestination(item.name)}
+                >
+                  <View style={styles.destinationContent}>
+                    <Feather name="map-pin" size={16} color="#2196F3" style={styles.destinationIcon} />
+                    <View>
+                      <Text style={styles.destinationName}>{item.name}</Text>
+                      {item.district && (
+                        <Text style={styles.destinationDistrict}>{item.district}</Text>
+                      )}
+                    </View>
+                  </View>
+                  {formData.destination === item.name && (
+                    <Feather name="check" size={20} color="#2196F3" />
+                  )}
+                </TouchableOpacity>
+              )}
+              style={styles.destinationList}
+              contentContainerStyle={styles.destinationListContent}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.noResultsContainer}>
+              <Feather name="alert-circle" size={50} color="#ccc" />
+              <Text style={styles.noResultsText}>No destinations found</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -181,22 +263,22 @@ const BookingDetailsForm = () => {
             <TextInput style={styles.input} value={formData.peopleCount} onChangeText={(val) => handleChange('peopleCount', val)} keyboardType="numeric" />
 
             <Text style={styles.label}>Destination</Text>
-            <View style={styles.dropdown}>
-              {trekkingOptions.map((trek) => (
-                <TouchableOpacity
-                  key={trek._id}
-                  onPress={() => handleChange('destination', trek.name)}
-                  style={[
-                    styles.dropdownItem,
-                    formData.destination === trek.name && styles.dropdownSelected,
-                  ]}
-                >
-                  <Text style={formData.destination === trek.name ? styles.selectedText : styles.dropdownText}>
-                    {trek.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <TouchableOpacity 
+              style={styles.destinationSelector} 
+              onPress={() => setDestinationModalVisible(true)}
+            >
+              {formData.destination ? (
+                <View style={styles.selectedDestinationContainer}>
+                  <Text style={styles.selectedDestinationText}>{formData.destination}</Text>
+                  <Feather name="edit-2" size={16} color="#666" />
+                </View>
+              ) : (
+                <View style={styles.unselectedDestinationContainer}>
+                  <Text style={styles.unselectedDestinationText}>Select a trekking destination</Text>
+                  <Feather name="chevron-down" size={20} color="#666" />
+                </View>
+              )}
+            </TouchableOpacity>
 
             <Text style={styles.label}>Payment Method</Text>
             <View style={styles.paymentContainer}>
@@ -256,6 +338,8 @@ const BookingDetailsForm = () => {
           </>
         )}
       </ScrollView>
+      
+      <DestinationSelectionModal />
     </SafeAreaView>
   );
 };
@@ -284,28 +368,104 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 8,
   },
-  dropdown: {
-    backgroundColor: '#f5f5f5',
+  
+  // New improved destination selector
+  destinationSelector: {
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
-    paddingVertical: 4,
+    padding: 12,
     marginBottom: 12,
   },
-  dropdownItem: {
-    padding: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#ccc',
+  selectedDestinationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  dropdownSelected: {
-    backgroundColor: '#000',
+  selectedDestinationText: {
+    fontSize: 15,
+    color: '#000',
   },
-  dropdownText: {
-    fontSize: 14,
-    color: '#333',
+  unselectedDestinationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  selectedText: {
-    fontSize: 14,
-    color: '#fff',
+  unselectedDestinationText: {
+    fontSize: 15,
+    color: '#999',
   },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  destinationList: {
+    flex: 1,
+  },
+  destinationListContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  destinationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  destinationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  destinationIcon: {
+    marginRight: 12,
+  },
+  destinationName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  destinationDistrict: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  noResultsText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#888',
+  },
+  
+  // Original styles
   paymentContainer: {
     flexDirection: 'row',
     marginTop: 10,

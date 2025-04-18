@@ -130,15 +130,16 @@ const ConfirmBooking = () => {
       Alert.alert('Error', 'Please select a date.');
       return;
     }
-    
+
     if (!guideId) {
       Alert.alert('Error', 'No guide selected. Please go back and select a guide.');
       return;
     }
-    
-    navigation.navigate('BookingDetailsForm', { 
+
+    navigation.navigate('BookingDetailsForm', {
       selectedDate,
-      guideId
+      guideId,
+      selectedTrek: route.params?.selectedTrek || null, // Pass selectedTrek if available
     });
   };
 

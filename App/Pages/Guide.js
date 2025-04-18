@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
@@ -10,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   Dimensions,
   FlatList,
@@ -18,6 +16,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../API/userApi';
 import bookingApi from '../API/bookingApi';
 
@@ -25,6 +25,8 @@ const { width } = Dimensions.get('window');
 
 const GuideScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
   const [guides, setGuides] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,26 +34,21 @@ const GuideScreen = () => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      checkBookingAndRedirect();
-    }, [])
-  );
-
-  const checkBookingAndRedirect = async () => {
-    try {
-      const response = await bookingApi.getLatestBooking();
-      if (response.success && response.booking) {
-        if (response.booking.status === 'pending' || response.booking.status === 'accepted') {
+  useEffect(() => {
+    const checkExistingBooking = async () => {
+      try {
+        const res = await bookingApi.getLatestBooking();
+        if (res.success && ['pending', 'accepted'].includes(res.booking.status)) {
+          await AsyncStorage.setItem('latestBookingId', res.booking._id);
           navigation.replace('BookingStatusLoader');
-          return;
         }
+      } catch (err) {
+        console.log('No active booking, showing guide list');
       }
-      fetchGuides();
-    } catch (error) {
-      fetchGuides();
-    }
-  };
+    };
+
+    checkExistingBooking();
+  }, []);
 
   const fetchGuides = async () => {
     try {
@@ -67,6 +64,17 @@ const GuideScreen = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleArrowPress = (direction) => {
+    let newIndex = activeIndex + direction;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= guides.length) newIndex = guides.length - 1;
+
+    if (newIndex !== activeIndex) {
+      setActiveIndex(newIndex);
+      flatListRef.current.scrollToIndex({ index: newIndex, animated: true });
     }
   };
 
@@ -117,9 +125,16 @@ const GuideScreen = () => {
   );
 
   const renderGuideItem = ({ item }) => (
-    <ScrollView 
+    <ScrollView
       style={styles.guideItemContainer}
       showsVerticalScrollIndicator={true}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          progressViewOffset={80}
+        />
+      }
     >
       <View style={styles.profileSection}>
         <Image
@@ -169,7 +184,7 @@ const GuideScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Our Trekking Guides</Text>
@@ -179,12 +194,20 @@ const GuideScreen = () => {
       </View>
 
       {guides.length > 0 ? (
-        <>
+        <View style={styles.contentContainer}>
+          <TouchableOpacity
+            style={[styles.arrowButton, styles.leftArrow, activeIndex === 0 && styles.disabledArrow]}
+            onPress={() => handleArrowPress(-1)}
+            disabled={activeIndex === 0}
+          >
+            <Feather name="chevron-left" size={30} color={activeIndex === 0 ? '#ccc' : '#000'} />
+          </TouchableOpacity>
+
           <FlatList
             ref={flatListRef}
             data={guides}
             renderItem={renderGuideItem}
-            keyExtractor={item => item._id}
+            keyExtractor={(item) => item._id}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -192,10 +215,19 @@ const GuideScreen = () => {
             bounces={false}
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            contentContainerStyle={{ flexGrow: 1 }}
           />
+
+          <TouchableOpacity
+            style={[styles.arrowButton, styles.rightArrow, activeIndex === guides.length - 1 && styles.disabledArrow]}
+            onPress={() => handleArrowPress(1)}
+            disabled={activeIndex === guides.length - 1}
+          >
+            <Feather name="chevron-right" size={30} color={activeIndex === guides.length - 1 ? '#ccc' : '#000'} />
+          </TouchableOpacity>
+
           {renderPagination()}
-        </>
+        </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
@@ -204,7 +236,7 @@ const GuideScreen = () => {
           <Text style={styles.noGuideText}>No guides found. Pull down to refresh.</Text>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -237,8 +269,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  arrowButton: {
+    position: 'absolute',
+    top: '40%',
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 20,
+  },
+  leftArrow: {
+    left: 10,
+  },
+  rightArrow: {
+    right: 10,
+  },
+  disabledArrow: {
+    opacity: 0.3,
+  },
   guideItemContainer: {
-    width: width,
+    width,
     paddingBottom: 30,
   },
   profileSection: {

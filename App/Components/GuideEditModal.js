@@ -1,5 +1,19 @@
 import React from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
+import userApi from '../API/userApi'; // Import the API for uploading QR images
 
 const GuideEditModal = ({
   visible,
@@ -11,9 +25,56 @@ const GuideEditModal = ({
   setExperience,
   setLanguage,
   setTrekCount,
+  qrImage,
+  setQrImage,
   onUpdateGuide,
   updateLoading,
 }) => {
+  const pickQrImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setQrImage(result.assets[0].uri);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      if (!qrImage) {
+        Alert.alert('Error', 'Please upload a QR image.');
+        return;
+      }
+
+      // Upload the QR image if it has been updated
+      if (qrImage.startsWith('file://')) {
+        const formData = new FormData();
+        formData.append('qr', {
+          uri: qrImage,
+          type: 'image/jpeg',
+          name: 'qr.jpg',
+        });
+
+        const response = await userApi.uploadGuideQrCode(guide._id, formData);
+        if (!response.success) {
+          throw new Error('Failed to upload QR image.');
+        }
+
+        // Update the guide's QR code URL after successful upload
+        setQrImage(response.qrCodeUrl); // Assuming the backend returns the updated QR code URL
+      }
+
+      // Call the onUpdateGuide function to save other details
+      onUpdateGuide();
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to save changes.');
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
@@ -23,6 +84,7 @@ const GuideEditModal = ({
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             <Text style={styles.guideName}>Guide: {guide?.fullname}</Text>
 
+            {/* Experience */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Experience:</Text>
               <TextInput
@@ -33,6 +95,7 @@ const GuideEditModal = ({
               />
             </View>
 
+            {/* Language */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Languages:</Text>
               <TextInput
@@ -43,6 +106,7 @@ const GuideEditModal = ({
               />
             </View>
 
+            {/* Trek Count */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Trek Count:</Text>
               <TextInput
@@ -53,6 +117,21 @@ const GuideEditModal = ({
                 onChangeText={setTrekCount}
               />
             </View>
+
+            {/* QR Code Image */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>QR Code:</Text>
+              <TouchableOpacity onPress={pickQrImage} style={styles.qrContainer}>
+                {qrImage ? (
+                  <Image source={{ uri: qrImage }} style={styles.qrImage} />
+                ) : (
+                  <View style={styles.qrPlaceholder}>
+                    <Feather name="image" size={24} color="#999" />
+                    <Text style={{ color: '#999', marginTop: 5 }}>Upload QR</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
 
           <View style={styles.buttonRow}>
@@ -60,7 +139,7 @@ const GuideEditModal = ({
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={onUpdateGuide} disabled={updateLoading}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={updateLoading}>
               {updateLoading ? <ActivityIndicator color="white" /> : <Text style={styles.saveText}>Save</Text>}
             </TouchableOpacity>
           </View>
@@ -84,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 10,
     padding: 15,
-    maxHeight: '85%',
+    maxHeight: '90%',
   },
   title: {
     fontSize: 22,
@@ -116,6 +195,24 @@ const styles = StyleSheet.create({
     padding: 10,
     fontSize: 16,
     backgroundColor: '#f5f5f5',
+  },
+  qrContainer: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 10,
+  },
+  qrImage: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+  },
+  qrPlaceholder: {
+    width: 120,
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonRow: {
     flexDirection: 'row',

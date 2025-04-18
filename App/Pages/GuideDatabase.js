@@ -37,6 +37,7 @@ const GuideDatabase = ({ navigation }) => {
   const [editExperience, setEditExperience] = useState('');
   const [editLanguage, setEditLanguage] = useState('');
   const [editTrekCount, setEditTrekCount] = useState('');
+  const [qrImage, setQrImage] = useState('');
 
   useEffect(() => {
     fetchGuides();
@@ -94,6 +95,7 @@ const GuideDatabase = ({ navigation }) => {
     setEditExperience(selectedGuide.experience || '');
     setEditLanguage(selectedGuide.language || '');
     setEditTrekCount(selectedGuide.trekCount?.toString() || '0');
+    setQrImage(selectedGuide.qrCode || '');
     setDetailModalVisible(false);
     setEditModalVisible(true);
   };
@@ -219,6 +221,8 @@ const GuideDatabase = ({ navigation }) => {
         setExperience={setEditExperience}
         setLanguage={setEditLanguage}
         setTrekCount={setEditTrekCount}
+        qrImage={qrImage}
+        setQrImage={setQrImage}
         onUpdateGuide={handleUpdateGuide}
         updateLoading={updateLoading}
       />

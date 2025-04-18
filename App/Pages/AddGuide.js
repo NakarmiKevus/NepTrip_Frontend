@@ -27,9 +27,10 @@ const AddGuide = ({ navigation }) => {
   const [language, setLanguage] = useState('');
   const [trekCount, setTrekCount] = useState('0');
   const [image, setImage] = useState(null);
+  const [qrImage, setQrImage] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async () => {
+  const pickImage = async (setter) => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -38,13 +39,21 @@ const AddGuide = ({ navigation }) => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setImage(result.assets[0].uri);
+      setter(result.assets[0].uri);
     }
   };
 
   const handleAddGuide = async () => {
     if (!fullname || !email || !password) {
       return Alert.alert('Error', 'Full Name, Email, and Password are required.');
+    }
+
+    if (!image) {
+      return Alert.alert('Error', 'Profile picture is required.');
+    }
+
+    if (!qrImage) {
+      return Alert.alert('Error', 'QR code image is required.');
     }
 
     try {
@@ -72,15 +81,28 @@ const AddGuide = ({ navigation }) => {
 
       await userApi.updateGuideDetails(newGuideId, guideDetails);
 
+      // Upload profile picture
       if (image) {
-        const formData = new FormData();
-        formData.append('profile', {
+        const profileForm = new FormData();
+        profileForm.append('profile', {
           uri: image,
           type: 'image/jpeg',
           name: 'profile.jpg'
         });
 
-        await userApi.uploadGuideProfilePicture(newGuideId, formData);
+        await userApi.uploadGuideProfilePicture(newGuideId, profileForm);
+      }
+
+      // Upload QR code image
+      if (qrImage) {
+        const qrForm = new FormData();
+        qrForm.append('qr', {
+          uri: qrImage,
+          type: 'image/jpeg',
+          name: 'qr.jpg'
+        });
+
+        await userApi.uploadGuideQrCode(newGuideId, qrForm);
       }
 
       Alert.alert('Success', 'Guide added successfully');
@@ -129,7 +151,9 @@ const AddGuide = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+            {/* Profile Picture Section */}
+            <Text style={styles.sectionLabel}>Profile Picture</Text>
+            <TouchableOpacity style={styles.imagePicker} onPress={() => pickImage(setImage)}>
               {image ? (
                 <Image source={{ uri: image }} style={styles.image} />
               ) : (
@@ -139,6 +163,24 @@ const AddGuide = ({ navigation }) => {
                 </View>
               )}
               {image && (
+                <View style={styles.editImageBadge}>
+                  <Feather name="edit-2" size={15} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* QR Code Section */}
+            <Text style={styles.sectionLabel}>Payment QR Code</Text>
+            <TouchableOpacity style={styles.imagePicker} onPress={() => pickImage(setQrImage)}>
+              {qrImage ? (
+                <Image source={{ uri: qrImage }} style={styles.image} />
+              ) : (
+                <View style={styles.imagePickerContent}>
+                  <Feather name="credit-card" size={30} color="#2196F3" />
+                  <Text style={styles.imageText}>Upload QR Code</Text>
+                </View>
+              )}
+              {qrImage && (
                 <View style={styles.editImageBadge}>
                   <Feather name="edit-2" size={15} color="#fff" />
                 </View>
@@ -216,6 +258,13 @@ const styles = StyleSheet.create({
   formContainer: {
     padding: 20,
   },
+  sectionLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center'
+  },
   inputContainer: {
     marginBottom: 20,
   },
@@ -251,7 +300,7 @@ const styles = StyleSheet.create({
   },
   imagePicker: {
     alignSelf: 'center',
-    marginVertical: 20,
+    marginVertical: 10,
     position: 'relative',
   },
   image: {
@@ -277,6 +326,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12,
     fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 5
   },
   editImageBadge: {
     position: 'absolute',
