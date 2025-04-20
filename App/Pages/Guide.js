@@ -23,7 +23,7 @@ import bookingApi from '../API/bookingApi';
 
 const { width } = Dimensions.get('window');
 
-const GuideScreen = () => {
+const GuideScreen = ({ route }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -49,6 +49,20 @@ const GuideScreen = () => {
 
     checkExistingBooking();
   }, []);
+
+  // ✅ Trigger on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchGuides();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (navigation.isFocused() && route.params?.refresh) {
+      navigation.setParams({ refresh: undefined });
+      fetchGuides();
+    }
+  }, [navigation, route.params]);
 
   const fetchGuides = async () => {
     try {
@@ -94,7 +108,7 @@ const GuideScreen = () => {
   }, []);
 
   const viewabilityConfig = {
-    itemVisiblePercentThreshold: 50
+    itemVisiblePercentThreshold: 50,
   };
 
   const renderInfoField = (iconName, label, value) => (
@@ -114,7 +128,7 @@ const GuideScreen = () => {
           key={index}
           style={[
             styles.paginationDot,
-            { backgroundColor: index === activeIndex ? '#2196F3' : '#ccc' }
+            { backgroundColor: index === activeIndex ? '#2196F3' : '#ccc' },
           ]}
           onPress={() => {
             flatListRef.current.scrollToIndex({ index, animated: true });
@@ -124,55 +138,78 @@ const GuideScreen = () => {
     </View>
   );
 
-  const renderGuideItem = ({ item }) => (
-    <ScrollView
-      style={styles.guideItemContainer}
-      showsVerticalScrollIndicator={true}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          progressViewOffset={80}
-        />
-      }
-    >
-      <View style={styles.profileSection}>
-        <Image
-          source={item.avatar ? { uri: item.avatar } : require('../../assets/images/Profile.png')}
-          style={styles.avatar}
-        />
-        <Text style={styles.name}>{item.fullname}</Text>
+  const renderGuideItem = ({ item }) => {
+    // Ensure proper rating values
+    const averageRating = item.averageRating !== undefined ? item.averageRating : 0;
+    const totalReviews = item.totalReviews !== undefined ? item.totalReviews : 0;
 
-        <View style={styles.ratingContainer}>
-          {[...Array(5)].map((_, index) => (
-            <Feather key={index} name="star" size={20} color="#FFD700" />
-          ))}
+    // Debug log
+    console.log(`Rendering guide ${item.fullname}: Rating=${averageRating}, Reviews=${totalReviews}`);
+
+    return (
+      <ScrollView
+        style={styles.guideItemContainer}
+        showsVerticalScrollIndicator={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            progressViewOffset={80}
+          />
+        }
+      >
+        <View style={styles.profileSection}>
+          <Image
+            source={item.avatar ? { uri: item.avatar } : require('../../assets/images/Profile.png')}
+            style={styles.avatar}
+          />
+          <Text style={styles.name}>{item.fullname}</Text>
+
+          <View style={styles.ratingContainer}>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Feather
+                key={index}
+                name="star"
+                size={20}
+                color={
+                  averageRating >= index + 1
+                    ? '#FFD700' // Full star
+                    : averageRating >= index + 0.5
+                    ? '#FFD700' // Half star
+                    : '#ccc' // Empty star
+                }
+              />
+            ))}
+            <Text style={styles.reviewText}>
+              {averageRating.toFixed(1)} ({totalReviews})
+            </Text>
+          </View>
+
+          <View style={styles.trekCountContainer}>
+            <Feather name="map" size={16} color="white" />
+            <Text style={styles.trekCountText}>{item.trekCount || 0} treks completed</Text>
+          </View>
+
+          <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
+            <Text style={styles.bookButtonText}>Book This Guide</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.trekCountContainer}>
-          <Feather name="map" size={16} color="white" />
-          <Text style={styles.trekCountText}>{item.trekCount || 0} treks completed</Text>
+        <View style={styles.divider} />
+
+        <View style={styles.personalInfoContainer}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          {renderInfoField('user', 'Full Name', item.fullname)}
+          {renderInfoField('mail', 'Email', item.email)}
+          {renderInfoField('phone', 'Phone Number', item.phoneNumber)}
+          {renderInfoField('map-pin', 'Address', item.address)}
+          {renderInfoField('globe', 'Language', item.language)}
+          {renderInfoField('briefcase', 'Experience', item.experience)}
+          {renderInfoField('map', 'Number of Treks', item.trekCount || '0')}
         </View>
-
-        <TouchableOpacity style={styles.bookButton} onPress={handleBookPress}>
-          <Text style={styles.bookButtonText}>Book This Guide</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.personalInfoContainer}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        {renderInfoField('user', 'Full Name', item.fullname)}
-        {renderInfoField('mail', 'Email', item.email)}
-        {renderInfoField('phone', 'Phone Number', item.phoneNumber)}
-        {renderInfoField('map-pin', 'Address', item.address)}
-        {renderInfoField('globe', 'Language', item.language)}
-        {renderInfoField('briefcase', 'Experience', item.experience)}
-        {renderInfoField('map', 'Number of Treks', item.trekCount || '0')}
-      </View>
-    </ScrollView>
-  );
+      </ScrollView>
+    );
+  };
 
   if (loading && !refreshing) {
     return (
@@ -189,7 +226,9 @@ const GuideScreen = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Our Trekking Guides</Text>
         <Text style={styles.headerSubtitle}>
-          {guides.length > 0 ? `Swipe to explore ${guides.length} available guides` : 'No guides available at the moment'}
+          {guides.length > 0
+            ? `Swipe to explore ${guides.length} available guides`
+            : 'No guides available at the moment'}
         </Text>
       </View>
 
@@ -315,7 +354,13 @@ const styles = StyleSheet.create({
   },
   ratingContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 10,
+  },
+  reviewText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
   },
   trekCountContainer: {
     flexDirection: 'row',

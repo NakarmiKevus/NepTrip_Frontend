@@ -145,6 +145,68 @@ const uploadGuideQrCode = async (guideId, formData) => {
   }
 };
 
+const fetchGuides = async () => {
+  try {
+    setLoading(true);
+    const data = await userApi.getGuides();
+    console.log("API Response:", JSON.stringify(data)); // ✅ Added logging for API response
+    if (data.success && data.guides?.length > 0) {
+      setGuides(data.guides);
+    } else {
+      Alert.alert('Error', 'No guides found.');
+    }
+  } catch (error) {
+    console.error("Error fetching guides:", error); // ✅ Added error logging
+    Alert.alert('Error', 'Failed to load guide details.');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+
+exports.getAllGuides = async (req, res) => {
+  try {
+    // Fetch all users with the role of 'guide'
+    const guides = await User.find({ role: 'guide' })
+      .select('fullname email phoneNumber address avatar qrCode experience trekCount language');
+
+    // Enrich each guide with average rating and total reviews
+    const enrichedGuides = await Promise.all(
+      guides.map(async (guide) => {
+        // Fetch all bookings with ratings for the current guide
+        const reviews = await Booking.find({
+          guide: guide._id,
+          rating: { $exists: true, $ne: null }
+        }).select('rating');
+
+        const totalReviews = reviews.length;
+        let averageRating = 0;
+
+        // Calculate the average rating if there are reviews
+        if (totalReviews > 0) {
+          const sum = reviews.reduce((total, booking) => total + booking.rating, 0);
+          averageRating = Number((sum / totalReviews).toFixed(1));
+        }
+
+        console.log(`Guide ${guide.fullname}: ${totalReviews} reviews, avg rating: ${averageRating}`);
+
+        // Return the enriched guide object
+        return {
+          ...guide.toObject(),
+          averageRating,
+          totalReviews
+        };
+      })
+    );
+
+    // Respond with the enriched guides
+    res.json({ success: true, guides: enrichedGuides });
+  } catch (error) {
+    console.error("Error in getAllGuides:", error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 export default {
   getAllUsers,
   getUserProfile,
@@ -157,4 +219,5 @@ export default {
   createGuide,
   uploadGuideProfilePicture,
   uploadGuideQrCode, // ✅ New function for QR code upload
+  fetchGuides, // ✅ Added fetchGuides function
 };

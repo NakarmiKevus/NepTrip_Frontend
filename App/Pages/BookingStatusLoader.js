@@ -172,6 +172,26 @@ const BookingStatusLoader = () => {
     navigation.navigate('Guide', { screen: 'GuideMain' });
   };
 
+  // UPDATED: Fixed QR code disappearing issue
+  const openPaymentModal = async () => {
+    try {
+      // First show the modal with existing data
+      setShowPaymentModal(true);
+      
+      // Then fetch updated data in the background
+      const latest = await bookingApi.getLatestBooking();
+      if (latest.success && latest.booking) {
+        setBooking(latest.booking); // Update booking data while modal is already showing
+      } else {
+        // Only log error but keep the modal open with existing data
+        console.warn('Could not load updated booking details');
+      }
+    } catch (err) {
+      console.error('Failed to fetch updated booking:', err);
+      // Modal stays open with existing data
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
@@ -288,7 +308,7 @@ const BookingStatusLoader = () => {
         {status === 'accepted' && booking?.paymentStatus !== 'paid' && (
           <TouchableOpacity 
             style={styles.actionButton} 
-            onPress={() => setShowPaymentModal(true)}
+            onPress={openPaymentModal}
             activeOpacity={0.8}
           >
             <Feather name="credit-card" size={20} color="#FFF" style={{ marginRight: 10 }} />
@@ -322,7 +342,13 @@ const BookingStatusLoader = () => {
           visible={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           booking={booking}
-          onPaymentMarked={fetchBookingStatus}
+          onPaymentMarked={() => {
+            fetchBookingStatus(); // Refresh booking status
+            setShowPaymentModal(false); // Close the modal
+            
+            // Add navigation to refresh guides in GuideScreen
+            navigation.navigate('Guide', { refresh: true });
+          }}
         />
       )}
     </SafeAreaView>

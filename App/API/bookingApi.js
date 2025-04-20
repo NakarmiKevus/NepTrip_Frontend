@@ -145,17 +145,66 @@ const updatePaymentMethod = async (bookingId, paymentData) => {
   }
 };
 
-// ✅ NEW: Confirm user-side payment
-const markUserPaymentConfirmed = async (bookingId) => {
+// Confirm user-side payment with rating
+const markUserPaymentConfirmed = async (bookingId, reviewData) => {
   try {
-    const response = await bookingClient.put(`/mark-user-payment/${bookingId}`);
+    console.log(`Sending rating data:`, reviewData);
+    const response = await bookingClient.put(`/mark-user-payment/${bookingId}`, reviewData);
+    console.log(`Response from markUserPaymentConfirmed:`, response.data);
     return response.data;
   } catch (error) {
+    console.error('Error in markUserPaymentConfirmed:', error);
     return error.response?.data || { success: false, message: 'Failed to mark payment' };
   }
 };
 
-// Export all
+// Debug endpoints
+const debugGetRatings = async () => {
+  try {
+    const response = await bookingClient.get('/debug/ratings');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching ratings debug:', error);
+    return error.response?.data || { success: false, message: 'Failed to fetch ratings debug info' };
+  }
+};
+
+const debugSetRating = async (bookingId, rating) => {
+  try {
+    const response = await bookingClient.post('/debug/set-rating', { bookingId, rating });
+    return response.data;
+  } catch (error) {
+    console.error('Error setting test rating:', error);
+    return error.response?.data || { success: false, message: 'Failed to set test rating' };
+  }
+};
+
+// Fetch guides
+const getGuides = async (timestamp = null) => {
+  try {
+    // Add timestamp to URL to prevent caching
+    const url = timestamp ? `/api/guides?t=${timestamp}` : '/api/guides';
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch guides: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('API response for guides:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching guides:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+// Export all functions
 export default {
   requestBooking,
   getBookingRequests,
@@ -170,5 +219,9 @@ export default {
   getAvailableGuides,
   updatePaymentStatus,
   updatePaymentMethod,
-  markUserPaymentConfirmed // ✅ include this here so it’s usable in ConfirmPayment.js
+  markUserPaymentConfirmed,
+  getGuides,
+  // Debug endpoints
+  debugGetRatings,
+  debugSetRating
 };

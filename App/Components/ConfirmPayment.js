@@ -1,93 +1,87 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Image,
-  Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
-import bookingApi from '../API/bookingApi';
 import { Feather } from '@expo/vector-icons';
+import bookingApi from '../API/bookingApi';
 
 const ConfirmPayment = ({ visible, onClose, booking, onPaymentMarked }) => {
   const [rating, setRating] = useState('');
-  const [review, setReview] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleMarkAsPaid = async () => {
+  useEffect(() => {
+    if (visible) setRating('');
+  }, [visible]);
+
+  const handleSubmit = async () => {
+    if (!rating || isNaN(rating) || rating < 1 || rating > 5) {
+      Alert.alert('Error', 'Please select a rating between 1 and 5');
+      return;
+    }
+
+    setLoading(true);
     try {
-      if (!booking || !booking._id) {
-        Alert.alert('Error', 'Booking ID is missing');
-        return;
-      }
-
-      setLoading(true);
-
-      const response = await bookingApi.markUserPaymentConfirmed(booking._id);
-      if (response.success) {
-        Alert.alert('Success', 'Payment marked as done.');
-        onPaymentMarked(); // ✅ properly named function
-        onClose(); // Close modal
+      const res = await bookingApi.markUserPaymentConfirmed(booking._id, { rating: parseFloat(rating) });
+      if (res.success) {
+        Alert.alert('Success', 'Payment and rating submitted');
+        onPaymentMarked?.();
       } else {
-        throw new Error(response.message || 'Failed to confirm payment');
+        throw new Error(res.message);
       }
-    } catch (error) {
-      Alert.alert('Error', error.message);
+    } catch (err) {
+      Alert.alert('Error', err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderStars = () =>
+    [1, 2, 3, 4, 5].map((val) => (
+      <TouchableOpacity key={val} onPress={() => setRating(val.toString())}>
+        <Feather
+          name="star"
+          size={28}
+          color={parseFloat(rating) >= val ? '#FFD700' : '#ccc'}
+          style={styles.star}
+        />
+      </TouchableOpacity>
+    ));
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <View style={styles.container}>
           <Text style={styles.header}>Confirm Your Payment</Text>
 
           {booking?.guide?.qrCode ? (
-            <Image source={{ uri: booking.guide.qrCode }} style={styles.qrImage} />
+            <Image source={{ uri: booking.guide.qrCode }} style={styles.qr} resizeMode="contain" />
           ) : (
-            <Text style={styles.noQr}>No QR code available</Text>
+            <Text style={styles.noQr}>QR code not available</Text>
           )}
 
           <Text style={styles.subTitle}>Rate Your Experience</Text>
-          <TextInput
-            placeholder="Rating (e.g. 4.5)"
-            value={rating}
-            onChangeText={setRating}
-            keyboardType="decimal-pad"
-            style={styles.input}
-          />
+          <View style={styles.starRow}>{renderStars()}</View>
 
-          <TextInput
-            placeholder="Write a short review"
-            value={review}
-            onChangeText={setReview}
-            style={[styles.input, { height: 80 }]}
-            multiline
-          />
-
-          <View style={styles.buttonRow}>
+          <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={styles.payBtn}
-              onPress={handleMarkAsPaid}
-              disabled={loading}
+              style={[styles.submitBtn, !rating && styles.disabled]}
+              onPress={handleSubmit}
+              disabled={loading || !rating}
             >
               {loading ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="#fff" />
               ) : (
-                <>
-                  <Feather name="check-circle" size={18} color="white" style={{ marginRight: 6 }} />
-                  <Text style={styles.payText}>Mark as Paid</Text>
-                </>
+                <Text style={styles.submitText}>Mark as Paid</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -106,77 +100,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  modalContainer: {
+  container: {
     width: '90%',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
-    maxHeight: '90%'
+    padding: 20
   },
   header: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center'
   },
-  subTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 15,
-    marginBottom: 5
-  },
-  qrImage: {
+  qr: {
     width: 180,
     height: 180,
     alignSelf: 'center',
-    marginBottom: 15,
-    borderRadius: 10
+    marginBottom: 15
   },
   noQr: {
     textAlign: 'center',
     color: '#888',
     marginBottom: 15
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    backgroundColor: '#f9f9f9',
+  subTitle: {
+    textAlign: 'center',
+    fontSize: 16,
     marginBottom: 10
   },
-  buttonRow: {
+  starRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 15
+  },
+  star: {
+    marginHorizontal: 5
+  },
+  actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20
+    marginTop: 10
   },
   cancelBtn: {
-    backgroundColor: '#ccc',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
     flex: 1,
+    backgroundColor: '#ccc',
+    padding: 12,
+    borderRadius: 8,
     marginRight: 5,
     alignItems: 'center'
   },
-  payBtn: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  submitBtn: {
     flex: 1,
+    backgroundColor: '#2196F3',
+    padding: 12,
+    borderRadius: 8,
     marginLeft: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: 'center'
+  },
+  disabled: {
+    backgroundColor: '#a0d0f7'
   },
   cancelText: {
     color: '#333',
     fontWeight: '600'
   },
-  payText: {
-    color: 'white',
+  submitText: {
+    color: '#fff',
     fontWeight: 'bold'
   }
 });
