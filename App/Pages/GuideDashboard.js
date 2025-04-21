@@ -8,622 +8,364 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  SafeAreaView,
-  ScrollView, 
+  RefreshControl,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import bookingApi from '../API/bookingApi';
 
 const GuideDashboard = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    totalBookings: 0,
-    pendingBookings: 0,
-    activeBookings: 0,
-    completedBookings: 0
-  });
+  const [stats, setStats] = useState({ total: 0, pending: 0, accepted: 0, completed: 0 });
 
   useEffect(() => {
     fetchBookings();
-    
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchBookings();
-    });
-    
+    const unsubscribe = navigation.addListener('focus', fetchBookings);
     return unsubscribe;
   }, [navigation]);
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await bookingApi.getAllBookingRequests();
-      
-      if (response.success) {
-        const allBookings = response.requests || [];
-        setBookings(allBookings);
-        setFilteredBookings(allBookings);
-        
-        // Calculate stats
-        updateStats(allBookings);
+      const res = await bookingApi.getAllBookingRequests();
+      if (res.success) {
+        const data = res.requests || [];
+        setBookings(data);
+        handleFilter(filter, data);
+        setStats({
+          total: data.length,
+          pending: data.filter(b => b.status === 'pending').length,
+          accepted: data.filter(b => b.status === 'accepted').length,
+          completed: data.filter(b => b.status === 'completed').length,
+        });
       } else {
-        Alert.alert('Error', response.message || 'Failed to fetch booking requests');
+        Alert.alert('Error', res.message || 'Failed to fetch bookings');
       }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      Alert.alert('Error', 'Failed to load booking requests');
+    } catch {
+      Alert.alert('Error', 'Unable to load bookings');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const updateStats = (bookingsData) => {
-    const stats = {
-      totalBookings: bookingsData.length,
-      pendingBookings: bookingsData.filter(b => b.status === 'pending').length,
-      activeBookings: bookingsData.filter(b => b.status === 'accepted').length,
-      completedBookings: bookingsData.filter(b => b.status === 'completed').length
-    };
-    setStats(stats);
-  };
-
-  const handleRespond = async (bookingId, status) => {
-    try {
-      const response = await bookingApi.respondToBooking(bookingId, status);
-      
-      if (response.success) {
-        // Update the local state
-        const updatedBookings = bookings.map(booking => 
-          booking._id === bookingId 
-            ? { ...booking, status } 
-            : booking
-        );
-        
-        setBookings(updatedBookings);
-        updateStats(updatedBookings);
-        
-        // Apply filters again
-        handleFilter(filter, updatedBookings);
-      } else {
-        Alert.alert('Error', response.message || 'Failed to respond to booking');
-      }
-    } catch (error) {
-      console.error('Error responding to booking:', error);
-      Alert.alert('Error', 'Failed to update booking status');
-    }
-  };
-
-  const handleCompleteTrek = async (bookingId) => {
-    try {
-      const response = await bookingApi.completeTour(bookingId);
-      
-      if (response.success) {
-        // Update the local state
-        const updatedBookings = bookings.map(booking => 
-          booking._id === bookingId 
-            ? { ...booking, status: 'completed' } 
-            : booking
-        );
-        
-        setBookings(updatedBookings);
-        updateStats(updatedBookings);
-        
-        // Apply filters again
-        handleFilter(filter, updatedBookings);
-      } else {
-        Alert.alert('Error', response.message || 'Failed to complete tour');
-      }
-    } catch (error) {
-      console.error('Error completing trek:', error);
-      Alert.alert('Error', 'Failed to mark trek as completed');
-    }
-  };
-
   const handleSearch = (text) => {
     setSearchQuery(text);
-    
-    if (!text.trim()) {
-      handleFilter(filter);
-      return;
-    }
-    
-    const searchResults = bookings.filter(booking => {
-      const matchesFilter = filter === 'all' || booking.status === filter;
-      
-      const matchesSearch = 
-        booking.fullname?.toLowerCase().includes(text.toLowerCase()) ||
-        booking.email?.toLowerCase().includes(text.toLowerCase()) ||
-        booking.destination?.toLowerCase().includes(text.toLowerCase()) ||
-        booking.date?.includes(text);
-        
-      return matchesFilter && matchesSearch;
-    });
-    
-    setFilteredBookings(searchResults);
+    handleFilter(filter, bookings, text);
   };
 
-  const handleFilter = (filterType, bookingsData = bookings) => {
-    setFilter(filterType);
-    
-    if (filterType === 'all') {
-      if (searchQuery.trim()) {
-        const searchResults = bookingsData.filter(booking => 
-          booking.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          booking.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          booking.destination?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          booking.date?.includes(searchQuery)
-        );
-        setFilteredBookings(searchResults);
-      } else {
-        setFilteredBookings(bookingsData);
-      }
-      return;
-    }
-    
-    const filtered = bookingsData.filter(booking => booking.status === filterType);
-    
-    if (searchQuery.trim()) {
-      const searchResults = filtered.filter(booking => 
-        booking.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.destination?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.date?.includes(searchQuery)
+  const handleFilter = (type, data = bookings, search = searchQuery) => {
+    setFilter(type);
+    let filtered = type === 'all' ? data : data.filter(b => b.status === type);
+    if (search) {
+      filtered = filtered.filter(b =>
+        b.fullname?.toLowerCase().includes(search.toLowerCase()) ||
+        b.destination?.toLowerCase().includes(search.toLowerCase())
       );
-      setFilteredBookings(searchResults);
-    } else {
-      setFilteredBookings(filtered);
+    }
+    setFilteredBookings(filtered);
+  };
+
+  const handleRespond = async (id, status) => {
+    try {
+      const res = await bookingApi.respondToBooking(id, status);
+      if (res.success) fetchBookings();
+    } catch {
+      Alert.alert('Error', 'Failed to update status');
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'pending':
-        return null; // No badge for pending
-      case 'accepted':
-        return <View style={styles.acceptedBadge}><Text style={styles.badgeText}>ACCEPTED</Text></View>;
-      case 'completed':
-        return <View style={styles.completedBadge}><Text style={styles.badgeText}>COMPLETED</Text></View>;
-      case 'declined':
-        return <View style={styles.declinedBadge}><Text style={styles.badgeText}>DECLINED</Text></View>;
-      default:
-        return null;
+  const handleComplete = async (id) => {
+    try {
+      const res = await bookingApi.completeTour(id);
+      if (res.success) fetchBookings();
+    } catch {
+      Alert.alert('Error', 'Failed to mark as completed');
     }
   };
 
-  const renderBookingItem = ({ item }) => (
-    <View style={styles.bookingCard}>
-      <View style={styles.bookingHeader}>
-        <Text style={styles.bookingName}>{item.fullname}</Text>
-        {getStatusBadge(item.status)}
-      </View>
-      
-      <View style={styles.bookingDetails}>
-        <View style={styles.detailRow}>
-          <Feather name="map-pin" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.destination || 'Not specified'}</Text>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <Feather name="calendar" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.date || 'No date set'}</Text>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <Feather name="users" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.peopleCount || '2'} people</Text>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <Feather name="mail" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.email || 'No email'}</Text>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <Feather name="phone" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.phone || 'No phone'}</Text>
+  const renderBooking = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.name}>{item.fullname}</Text>
+        <View style={[styles.badge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Text style={styles.badgeText}>{capitalize(item.status)}</Text>
         </View>
       </View>
-      
+
+      <View style={styles.infoRow}>
+        <Feather name="map-pin" size={14} color="#555" />
+        <Text style={styles.infoText}>{item.destination}</Text>
+      </View>
+      <View style={styles.infoRow}>
+        <Feather name="calendar" size={14} color="#555" />
+        <Text style={styles.infoText}>{item.date}</Text>
+      </View>
+      <View style={styles.infoRow}>
+        <Feather name="users" size={14} color="#555" />
+        <Text style={styles.infoText}>{item.peopleCount} people</Text>
+      </View>
+
       {item.status === 'pending' && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.acceptButton}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.button, styles.accept]}
             onPress={() => handleRespond(item._id, 'accepted')}
           >
-            <Feather name="check" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Accept</Text>
+            <Text style={styles.buttonText}>Accept</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.declineButton}
+          <TouchableOpacity
+            style={[styles.button, styles.decline]}
             onPress={() => handleRespond(item._id, 'declined')}
           >
-            <Feather name="x" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Decline</Text>
+            <Text style={styles.buttonText}>Decline</Text>
           </TouchableOpacity>
         </View>
       )}
-      
+
       {item.status === 'accepted' && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.completeButton}
-            onPress={() => handleCompleteTrek(item._id)}
-          >
-            <Feather name="check-circle" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Complete Trek</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.viewDetailsButton}
-            onPress={() => navigation.navigate('Tours', { booking: item })}
-          >
-            <Feather name="eye" size={16} color="#0096FF" />
-            <Text style={styles.viewDetailsText}>View Details</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      
-      {/* For completed or declined bookings, show view details button */}
-      {(item.status === 'completed' || item.status === 'declined') && (
-        <TouchableOpacity 
-          style={styles.fullWidthViewDetailsButton}
-          onPress={() => navigation.navigate('Tours', { booking: item })}
+        <TouchableOpacity
+          style={[styles.button, styles.complete, { marginTop: 10 }]}
+          onPress={() => handleComplete(item._id)}
         >
-          <Feather name="eye" size={16} color="#0096FF" />
-          <Text style={styles.viewDetailsText}>View Details</Text>
+          <Text style={styles.buttonText}>Complete Trek</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Guide Dashboard</Text>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <Text style={styles.header}>Guide Dashboard</Text>
+
+      <View style={styles.stats}>
+        <StatBox label="Total" value={stats.total} color="#f0f0f0" textColor="#333" />
+        <StatBox label="Pending" value={stats.pending} color="#FFA500" />
+        <StatBox label="Active" value={stats.accepted} color="#4CAF50" />
+        <StatBox label="Completed" value={stats.completed} color="#2196F3" />
       </View>
 
-      {/* Stats Section */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalBookings}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: '#FFA500' }]}>
-          <Text style={[styles.statNumber, { color: 'white' }]}>{stats.pendingBookings}</Text>
-          <Text style={[styles.statLabel, { color: 'white' }]}>Pending</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: '#4CAF50' }]}>
-          <Text style={[styles.statNumber, { color: 'white' }]}>{stats.activeBookings}</Text>
-          <Text style={[styles.statLabel, { color: 'white' }]}>Active</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: '#2196F3' }]}>
-          <Text style={[styles.statNumber, { color: 'white' }]}>{stats.completedBookings}</Text>
-          <Text style={[styles.statLabel, { color: 'white' }]}>Completed</Text>
-        </View>
+      <View style={styles.searchBar}>
+        <Feather name="search" size={16} color="#777" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search bookings..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => handleSearch('')}>
+            <Feather name="x" size={16} color="#777" />
+          </TouchableOpacity>
+        ) : null}
       </View>
-      
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Feather name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search bookings..."
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => handleSearch('')}>
-              <Feather name="x" size={20} color="#666" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+
+      <View style={styles.filters}>
+        {['all', 'pending', 'accepted', 'completed'].map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[styles.filterButton, filter === f && styles.activeFilter]}
+            onPress={() => handleFilter(f)}
+          >
+            <Text style={filter === f ? styles.activeFilterText : styles.filterText}>
+              {capitalize(f)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-      
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'all' && styles.activeFilter]}
-            onPress={() => handleFilter('all')}
-          >
-            <Text style={filter === 'all' ? styles.activeFilterText : styles.filterText}>All</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'pending' && styles.activeFilter]}
-            onPress={() => handleFilter('pending')}
-          >
-            <Text style={filter === 'pending' ? styles.activeFilterText : styles.filterText}>Pending</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'accepted' && styles.activeFilter]}
-            onPress={() => handleFilter('accepted')}
-          >
-            <Text style={filter === 'accepted' ? styles.activeFilterText : styles.filterText}>Accepted</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'completed' && styles.activeFilter]}
-            onPress={() => handleFilter('completed')}
-          >
-            <Text style={filter === 'completed' ? styles.activeFilterText : styles.filterText}>Completed</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'declined' && styles.activeFilter]}
-            onPress={() => handleFilter('declined')}
-          >
-            <Text style={filter === 'declined' ? styles.activeFilterText : styles.filterText}>Declined</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-      
-      {loading ? (
+
+      {loading && !refreshing ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#000" />
-          <Text style={styles.loadingText}>Loading booking requests...</Text>
         </View>
       ) : (
         <FlatList
           data={filteredBookings}
-          keyExtractor={(item, index) => item._id || `booking-${index}`}
-          renderItem={renderBookingItem}
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            fetchBookings();
-          }}
-          contentContainerStyle={styles.listContainer}
+          keyExtractor={(item) => item._id}
+          renderItem={renderBooking}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchBookings} />}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Feather name="calendar" size={50} color="#ccc" />
-              <Text style={styles.emptyText}>No booking requests found</Text>
-              {(filter !== 'all' || searchQuery) && (
-                <Text style={styles.emptySubText}>Try changing your filters or search terms</Text>
-              )}
+            <View style={styles.emptyBox}>
+              <Feather name="calendar" size={40} color="#ccc" />
+              <Text style={styles.emptyText}>No bookings found</Text>
             </View>
           }
+          contentContainerStyle={styles.listContent}
         />
       )}
     </SafeAreaView>
   );
 };
 
+const StatBox = ({ label, value, color, textColor = '#fff' }) => (
+  <View style={[styles.statBox, { backgroundColor: color }]}>
+    <Text style={[styles.statValue, { color: textColor }]}>{value}</Text>
+    <Text style={[styles.statLabel, { color: textColor }]}>{label}</Text>
+  </View>
+);
+
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'pending': return '#FFA500';
+    case 'accepted': return '#4CAF50';
+    case 'completed': return '#2196F3';
+    case 'declined': return '#F44336';
+    default: return '#999';
+  }
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff' 
   },
-  header: {
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    marginTop: 50,
+  header: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    padding: 16, 
+    color: '#333', 
+    marginTop: -50,
+    marginBottom: 12
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  stats: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around', 
+    marginBottom: 12,
+    paddingHorizontal: 16
   },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
-  },
-  statCard: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+  statBox: {
+    width: '22%',
+    borderRadius: 6,
     paddingVertical: 8,
-    paddingHorizontal: 12,
     alignItems: 'center',
-    width: '23%',
   },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  statValue: { 
+    fontWeight: 'bold', 
+    fontSize: 18 
   },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  searchContainer: {
-    padding: 10,
-    backgroundColor: '#fff',
+  statLabel: { 
+    fontSize: 12 
   },
   searchBar: {
     flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    marginHorizontal: 16,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 15,
-    borderRadius: 25,
-    height: 40,
+    height: 38,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
+    marginHorizontal: 8,
+    fontSize: 15,
   },
-  filterContainer: {
+  filters: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
   },
   filterButton: {
-    paddingVertical: 6,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 6,
     paddingHorizontal: 12,
-    borderRadius: 20,
-    marginHorizontal: 4,
-    backgroundColor: '#f0f0f0',
+    paddingVertical: 6,
+    marginRight: 8,
   },
   activeFilter: {
     backgroundColor: '#000',
   },
   filterText: {
-    color: '#666',
+    fontSize: 13,
+    color: '#555',
   },
   activeFilterText: {
     color: '#fff',
     fontWeight: '500',
   },
-  listContainer: {
-    padding: 10,
-    paddingBottom: 40,
-  },
-  bookingCard: {
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
-    padding: 15,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  bookingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  name: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: '#333' 
   },
-  bookingName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  acceptedBadge: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-  },
-  completedBadge: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-  },
-  declinedBadge: {
-    backgroundColor: '#F44336',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 15,
+  badge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 4,
   },
   badgeText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
-  bookingDetails: {
-    marginBottom: 15,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#333',
-  },
-  actionButtons: {
+  rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  infoText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#555',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
     gap: 10,
   },
-  acceptButton: {
-    flexDirection: 'row',
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    borderRadius: 5,
+  button: {
     flex: 1,
-  },
-  declineButton: {
-    flexDirection: 'row',
-    backgroundColor: '#F44336',
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-  },
-  completeButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2196F3',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    height: 40,
+    paddingVertical: 10,
+    borderRadius: 6,
   },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#0096FF',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    height: 40,
-  },
-  fullWidthViewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#0096FF',
-    padding: 10,
-    borderRadius: 5,
-  },
-  actionButtonText: {
+  buttonText: {
     color: '#fff',
-    marginLeft: 5,
     fontWeight: '500',
   },
-  viewDetailsText: {
-    color: '#0096FF',
-    marginLeft: 5,
-    fontWeight: '500',
+  accept: { backgroundColor: '#4CAF50' },
+  decline: { backgroundColor: '#F44336' },
+  complete: { backgroundColor: '#2196F3' },
+  emptyBox: {
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  emptyText: {
+    marginTop: 10,
+    color: '#999',
+    fontSize: 15,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-  },
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptySubText: {
-    marginTop: 5,
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+  listContent: { 
+    padding: 16, 
+    paddingBottom: 40 
   },
 });
 

@@ -104,7 +104,8 @@ const GuideBottomTabNavigator = () => (
         const icons = {
           Bookings: 'calendar',
           Tours: 'map-pin',
-          Messages: 'message-circle',
+          Navigate: 'navigation',
+          Weather: 'cloud',
           Profile: 'user',
         };
         return <Feather name={icons[route.name]} size={size} color={color} />;
@@ -116,7 +117,8 @@ const GuideBottomTabNavigator = () => (
   >
     <Tab.Screen name="Bookings" component={GuideDashboard} />
     <Tab.Screen name="Tours" component={Tours} />
-    <Tab.Screen name="Messages" component={GuideDashboard} />
+    <Tab.Screen name="Navigate" component={Weather} />
+    <Tab.Screen name="Weather" component={Weather} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );

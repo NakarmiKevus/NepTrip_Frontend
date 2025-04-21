@@ -13,6 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import bookingApi from '../API/bookingApi';
+import UserTourDetailModal from '../Components/UserTourDetailModal';
 
 const Tours = () => {
   const navigation = useNavigation();
@@ -20,14 +21,16 @@ const Tours = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     fetchAcceptedTours();
-    
+
     const unsubscribe = navigation.addListener('focus', () => {
       fetchAcceptedTours();
     });
-    
+
     return unsubscribe;
   }, [navigation]);
 
@@ -35,23 +38,15 @@ const Tours = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching accepted tours...');
-      
       const response = await bookingApi.getAllBookingRequests();
-      console.log('API response:', response);
-      
       if (response.success) {
-        // Filter to only show accepted bookings
         const acceptedTours = response.requests.filter(booking => booking.status === 'accepted') || [];
-        console.log(`Found ${acceptedTours.length} accepted tours`);
         setTours(acceptedTours);
       } else {
-        console.error('API returned error:', response.message);
         setError(response.message || 'Failed to fetch tours');
         Alert.alert('Error', response.message || 'Failed to fetch tours');
       }
     } catch (error) {
-      console.error('Exception during fetch:', error);
       setError('Network error. Please check your connection and try again.');
       Alert.alert('Error', 'Failed to load tours. Please check your connection.');
     } finally {
@@ -62,19 +57,14 @@ const Tours = () => {
 
   const completeTourProcess = async (bookingId) => {
     try {
-      console.log('Completing tour:', bookingId);
       const response = await bookingApi.completeTour(bookingId);
-      
       if (response.success) {
         Alert.alert('Success', 'Tour marked as completed!');
-        // Refresh the list
         fetchAcceptedTours();
       } else {
-        console.error('API error when completing tour:', response.message);
         Alert.alert('Error', response.message || 'Failed to complete tour');
       }
     } catch (error) {
-      console.error('Exception when completing tour:', error);
       Alert.alert('Error', 'An error occurred while completing the tour');
     }
   };
@@ -85,8 +75,8 @@ const Tours = () => {
       'Are you sure you want to mark this tour as completed?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Yes, Complete', 
+        {
+          text: 'Yes, Complete',
           onPress: () => completeTourProcess(booking._id)
         }
       ]
@@ -94,8 +84,8 @@ const Tours = () => {
   };
 
   const handleViewDetails = (booking) => {
-    console.log('Navigating to tour details with booking:', booking._id);
-    navigation.navigate('TourDetails', { booking });
+    setSelectedBooking(booking);
+    setShowModal(true);
   };
 
   const onRefresh = () => {
@@ -146,44 +136,43 @@ const Tours = () => {
           <Feather name="map-pin" size={16} color="#666" />
           <Text style={styles.detailText}>{item.destination || 'Not specified'}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Feather name="calendar" size={16} color="#666" />
           <Text style={styles.detailText}>{item.date || 'No date set'}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Feather name="users" size={16} color="#666" />
           <Text style={styles.detailText}>{item.peopleCount || '2'} people</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Feather name="mail" size={16} color="#666" />
           <Text style={styles.detailText}>{item.email || 'No email'}</Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Feather name="phone" size={16} color="#666" />
           <Text style={styles.detailText}>{item.phone || 'No phone'}</Text>
         </View>
-        
-        {/* Payment Information - Handle case where payment info might not exist */}
+
         <View style={styles.paymentInfoSection}>
           <View style={styles.detailRow}>
-            <Feather 
-              name={item.paymentMethod === 'cash' ? 'dollar-sign' : 'credit-card'} 
-              size={16} 
-              color="#666" 
+            <Feather
+              name={item.paymentMethod === 'cash' ? 'dollar-sign' : 'credit-card'}
+              size={16}
+              color="#666"
             />
             <Text style={styles.detailText}>
               Payment: {formatPaymentMethod(item.paymentMethod)}
             </Text>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Feather name="info" size={16} color={getPaymentStatusColor(item.paymentStatus)} />
             <Text style={[
-              styles.detailText, 
+              styles.detailText,
               { color: getPaymentStatusColor(item.paymentStatus) }
             ]}>
               Status: {formatPaymentStatus(item.paymentStatus)}
@@ -194,15 +183,15 @@ const Tours = () => {
       </View>
 
       <View style={styles.actionButtons}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.completeButton}
           onPress={() => handleCompleteTour(item)}
         >
           <Feather name="check-circle" size={16} color="#fff" />
           <Text style={styles.actionButtonText}>Complete Trek</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.viewDetailsButton}
           onPress={() => handleViewDetails(item)}
         >
@@ -213,61 +202,48 @@ const Tours = () => {
     </View>
   );
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Loading tours...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Feather name="alert-triangle" size={50} color="#F44336" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={() => fetchAcceptedTours()}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Active Tours</Text>
       </View>
-      
-      <FlatList
-        data={tours}
-        keyExtractor={(item, index) => item._id || `tour-${index}`}
-        renderItem={renderTourItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Feather name="map" size={50} color="#ccc" />
-            <Text style={styles.emptyText}>No active tours found</Text>
-            <Text style={styles.emptySubText}>Accept booking requests to see them here</Text>
-          </View>
-        }
+
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2196F3" />
+          <Text style={styles.loadingText}>Loading tours...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={tours}
+          keyExtractor={(item, index) => item._id || `tour-${index}`}
+          renderItem={renderTourItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Feather name="map" size={50} color="#ccc" />
+              <Text style={styles.emptyText}>No active tours found</Text>
+              <Text style={styles.emptySubText}>Accept booking requests to see them here</Text>
+            </View>
+          }
+        />
+      )}
+
+      {/* MODAL */}
+      <UserTourDetailModal
+        visible={showModal}
+        booking={selectedBooking}
+        onClose={() => setShowModal(false)}
       />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
   header: {
     backgroundColor: '#fff',
     paddingVertical: 15,
@@ -415,7 +391,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-  }
+  },
 });
 
 export default Tours;
