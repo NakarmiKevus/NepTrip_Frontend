@@ -17,7 +17,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import TrekDetailModal from '../Components/TrekDetailModal'; // for admin
 import UserTrekDetailModal from '../Components/UserTrekDetailModal'; // for user
 
-const Dashboard = () => {
+const Dashboard = ({ navigation }) => {
   const [trekkingPlaces, setTrekkingPlaces] = useState([]);
   const [filteredPlaces, setFilteredPlaces] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -83,23 +83,6 @@ const Dashboard = () => {
     return [...array].sort(() => Math.random() - 0.5);
   };
 
-  const handleBookPress = async (trek) => {
-    try {
-      const res = await bookingApi.getLatestBooking();
-      if (res.success && ['pending', 'accepted'].includes(res.booking.status)) {
-        await AsyncStorage.setItem('latestBookingId', res.booking._id);
-        navigation.replace('BookingStatusLoader');
-        return;
-      }
-
-      // ✅ If no existing booking, go to guide screen
-      navigation.navigate('Guide', { selectedTrek: trek }); // pass trek if needed
-    } catch (err) {
-      console.log('Booking check failed:', err);
-      navigation.navigate('Guide', { selectedTrek: trek });
-    }
-  };
-
   const renderHorizontalCard = ({ item }) => (
     <TouchableOpacity style={styles.smallCard} onPress={() => openTrekDetails(item)}>
       <Image
@@ -111,7 +94,11 @@ const Dashboard = () => {
   );
 
   const renderVerticalCard = (item) => (
-    <TouchableOpacity key={item._id} style={styles.verticalCard} onPress={() => handleBookPress(item)}>
+    <TouchableOpacity
+      key={item._id}
+      style={styles.verticalCard}
+      onPress={() => openTrekDetails(item)} // ✅ Fixed bug here
+    >
       <Image
         source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
         style={styles.verticalImage}
@@ -129,7 +116,6 @@ const Dashboard = () => {
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Content Wrapper */}
         <View style={styles.contentWrapper}>
           {/* Search Bar */}
           <View style={styles.searchBox}>
@@ -198,10 +184,25 @@ const Dashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff',},
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  mainTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: '#666', marginBottom: 14 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+  },
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 14,
+  },
   searchBox: {
     marginTop: 10,
     width: '100%',
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   searchIcon: {
-    marginLeft:6,
+    marginLeft: 6,
     marginRight: 10,
   },
   searchInput: {

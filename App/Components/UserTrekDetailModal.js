@@ -45,12 +45,12 @@ const StarRating = ({ rating, size = 18, color = '#FFC107' }) => {
 };
 
 const InfoBadge = ({ icon, label, value, iconColor = '#007AFF' }) => (
-  <View style={styles.infoBadge}>
-    <Feather name={icon} size={18} color={iconColor} />
-    <View style={styles.infoBadgeText}>
-      <Text style={styles.infoBadgeLabel}>{label}</Text>
+  <View style={styles.infoBadgeRow}>
+    <Feather name={icon} size={18} color={iconColor} style={{ marginRight: 6 }} />
+    <Text style={styles.infoBadgeText}>
+      <Text style={styles.infoBadgeLabel}>{label}: </Text>
       <Text style={styles.infoBadgeValue}>{value}</Text>
-    </View>
+    </Text>
   </View>
 );
 
@@ -125,7 +125,6 @@ const UserTrekDetailModal = ({ visible, onClose, trek }) => {
                     ))}
                   </ScrollView>
 
-                  {/* Arrows */}
                   <TouchableOpacity style={[styles.imageNavButton, styles.prevButton]} onPress={prevImage}>
                     <Feather name="chevron-left" size={24} color="#fff" />
                   </TouchableOpacity>
@@ -133,7 +132,6 @@ const UserTrekDetailModal = ({ visible, onClose, trek }) => {
                     <Feather name="chevron-right" size={24} color="#fff" />
                   </TouchableOpacity>
 
-                  {/* Dots */}
                   <View style={styles.pagination}>
                     {trek.images.map((_, index) => (
                       <View
@@ -151,7 +149,7 @@ const UserTrekDetailModal = ({ visible, onClose, trek }) => {
               )}
             </View>
 
-            {/* Info */}
+            {/* Info Badges */}
             <View style={styles.quickInfoContainer}>
               <InfoBadge icon="map-pin" label="Location" value={trek.location} />
               <InfoBadge icon="trending-up" label="Altitude" value={`${trek.altitude}m`} />
@@ -203,10 +201,7 @@ const UserTrekDetailModal = ({ visible, onClose, trek }) => {
 export default UserTrekDetailModal;
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
+  safeArea: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   overlay: {
     flex: 1,
     justifyContent: 'center',
@@ -304,29 +299,29 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   quickInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#f9f9f9',
-    marginTop: 16,
+    gap: 10,
   },
-  infoBadge: {
+  infoBadgeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    flexWrap: 'wrap',
+    marginBottom: 4,
   },
   infoBadgeText: {
-    alignItems: 'center',
-    marginTop: 4,
+    flexShrink: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   infoBadgeLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
   },
   infoBadgeValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 2,
+    color: '#444',
   },
   detailsScroll: { flexGrow: 1 },
   detailsContainer: { padding: 16 },
