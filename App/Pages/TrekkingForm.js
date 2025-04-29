@@ -19,7 +19,7 @@ const TrekkingForm = ({ navigation }) => {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [altitude, setAltitude] = useState('');
-  const [rating, setRating] = useState(3); // Default to 3 stars
+  const [rating, setRating] = useState(3); 
   const [review, setReview] = useState('');
   const [distance, setDistance] = useState('');
   const [timeToComplete, setTimeToComplete] = useState('');

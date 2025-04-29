@@ -1,3 +1,4 @@
+import 'react-native-get-random-values'; // 👈 Add this at the very top
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +29,7 @@ import UserDetails from './App/Pages/UserDetails';
 import GuideDashboard from './App/Pages/GuideDashboard';
 import Tours from './App/Pages/Tours';
 import AddGuide from './App/Pages/AddGuide';
+import MapScreen from './App/Pages/MapScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -90,7 +92,7 @@ const UserBottomTabNavigator = () => (
   >
     <Tab.Screen name="Explore" component={Dashboard} />
     <Tab.Screen name="Guide" component={GuideStackNavigator} />
-    <Tab.Screen name="Navigate" component={Dashboard} />
+    <Tab.Screen name="Navigate" component={MapScreen} />
     <Tab.Screen name="Weather" component={Weather} />
     <Tab.Screen name="Profile" component={ProfileStackNavigator} />
   </Tab.Navigator>

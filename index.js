@@ -2,7 +2,7 @@ import { registerRootComponent } from 'expo';
 
 import App from './App';
 
-export const apiKey = '7abb353fe5e94298837163437252004'; // ✅ NEW KEY
+export const apiKey = '68dfee616b274304bdd123025252904'; 
 
 
 export const weatherImages = {

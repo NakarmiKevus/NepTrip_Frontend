@@ -426,8 +426,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   weatherImage1: {
-    width: 150, // Slightly smaller
-    height: 150, // Slightly smaller
+    width: 150, 
+    height: 150, 
   },
   weatherImage: {
     width: 30,
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 8,
     textAlign: 'center',
-    width: 75, // Ensure a fixed width
+    width: 75, 
   },
   forecastTemp: {
     color: 'white',
